@@ -59,9 +59,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setMode('onboarding');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In local demo mode, log into default account
+    const form = e.currentTarget as HTMLFormElement;
+    const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement | null;
+    const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement | null;
+    if (supabase && emailInput && passwordInput) {
+      const { error } = await supabase.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
+      if (error) { alert(error.message); return; }
+    }
     onSuccess();
     onClose();
   };
