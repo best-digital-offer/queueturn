@@ -14,6 +14,7 @@ import {
 import { useQueue } from '../../context/QueueContext';
 import { BusinessType } from '../../types/queue';
 import { QrCodeCanvas } from '../Common/QrCodeCanvas';
+import { supabase } from '../../services/supabaseClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -68,28 +69,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleCompleteOnboarding = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Create Business
-    const biz = createBusiness({
-      name: businessName,
-      ownerName,
-      email,
-      businessType,
-    });
+    try {
+      if (supabase) {
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name: ownerName, business_name: businessName } } });
+        if (error) throw error;
+        if (!data.user) throw new Error('Account creation failed.');
+        if (!data.session) {
+          alert('Account created. Please confirm your email, then sign in to continue.');
+          setMode('login');
+          return;
+        }
 
-    // 2. Create First Queue
-    const q = createQueue({
-      businessId: biz.id,
-      name: queueName,
-      prefix: prefixFormat,
-      startNumber,
-      averageServiceMinutes: avgServiceMinutes,
-      allowEstimatedWait,
-    });
+        const bizSlug = businessName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'business';
+        const { data: biz, error: bizError } = await supabase.from('businesses').insert({
+          owner_id: data.user.id, name: businessName
+        }).select('id,name').single();
+        if (bizError) throw bizError;
 
-    setCreatedBizId(biz.id);
-    setCreatedBizSlug(biz.slug);
-    setCreatedQueueSlug(q.slug);
-    setMode('success');
+        const queueSlugValue = queueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'general-service';
+        const { data: q, error: qError } = await supabase.from('queues').insert({
+          business_id: biz.id, name: queueName, slug: queueSlugValue,
+          prefix: prefixFormat, next_number: startNumber,
+          estimated_minutes_per_person: avgServiceMinutes
+        }).select('id,slug').single();
+        if (qError) throw qError;
+
+        setCreatedBizId(biz.id);
+        setCreatedBizSlug(bizSlug);
+        setCreatedQueueSlug(q.slug);
+        setMode('success');
+      } else {
+        const biz = createBusiness({ name: businessName, ownerName, email, businessType });
+        const q = createQueue({ businessId: biz.id, name: queueName, prefix: prefixFormat, startNumber, averageServiceMinutes: avgServiceMinutes, allowEstimatedWait });
+        setCreatedBizId(biz.id);
+        setCreatedBizSlug(biz.slug);
+        setCreatedQueueSlug(q.slug);
+        setMode('success');
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : 'Unable to create account. Please try again.');
+    }
   };
 
   const publicUrl = typeof window !== 'undefined'
