@@ -1,0 +1,6 @@
+{
+  "name": "QueueFlow - Simple Digital Queues & Waiting List",
+  "description": "Simple Digital Queues. No App Required. Let customers join your waiting line from their phone and wait without standing in line.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
