@@ -17,6 +17,8 @@ import {
 import { useQueue } from '../../context/QueueContext';
 import { notificationService } from '../../services/notifications';
 import { soundService } from '../../services/sound';
+import { findPublicQueue, joinCloudQueue, getCloudVisitor, subscribeToCloudQueue } from '../../services/cloudQueue';
+import { supabase } from '../../services/supabaseClient';
 import confetti from 'canvas-confetti';
 
 interface CustomerViewProps {
@@ -45,16 +47,39 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const [notificationStatus, setNotificationStatus] = useState<string>('default');
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
+  const [cloudQueue, setCloudQueue] = useState<any>(null);
+  const [cloudBusiness, setCloudBusiness] = useState<any>(null);
+  const [cloudVisitor, setCloudVisitor] = useState<any>(null);
+
+  // Cloud mode: QR/customer links use Supabase when configured.
+  useEffect(() => {
+    let cancelled=false;
+    if (!supabase) return;
+    findPublicQueue(queueSlug, businessSlug).then(found => {
+      if (!cancelled && found) { setCloudQueue(found.queue); setCloudBusiness(found.business); }
+    });
+    return () => { cancelled=true; };
+  }, [queueSlug,businessSlug]);
+
+  useEffect(() => {
+    if (!cloudQueue || !supabase) return;
+    const visitorId=localStorage.getItem('queueturn_cloud_visitor_id_'+cloudQueue.id);
+    const token=localStorage.getItem('queueturn_cloud_visitor_token_'+cloudQueue.id);
+    if (!visitorId || !token) return;
+    const refresh=()=>getCloudVisitor(visitorId,token).then(v=>v && setCloudVisitor(v));
+    refresh();
+    return subscribeToCloudQueue(cloudQueue.id,refresh);
+  }, [cloudQueue?.id]);
 
   // Find business and queue
-  const business = state.businesses.find((b) => b.slug === businessSlug) || state.businesses[0];
-  const queue = state.queues.find((q) => q.businessId === business?.id && (q.slug === queueSlug || q.id === queueSlug)) || state.queues[0];
+  const business = cloudBusiness || state.businesses.find((b) => b.slug === businessSlug) || state.businesses[0];
+  const queue = cloudQueue || state.queues.find((q) => q.businessId === business?.id && (q.slug === queueSlug || q.id === queueSlug)) || state.queues[0];
 
-  const activeCustomerEntry = queue ? getCustomerActiveEntry(queue.id) : null;
-  const positionInfo = (queue && activeCustomerEntry) ? calculatePosition(queue.id, activeCustomerEntry.id) : { peopleAhead: 0, estimatedWaitMinutes: 0 };
+  const activeCustomerEntry = cloudVisitor ? { id:cloudVisitor.visitor_id, displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.queue_number}`, status:cloudVisitor.status === 'called' ? 'serving' : cloudVisitor.status, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
+  const positionInfo = cloudVisitor ? { peopleAhead:Number(cloudVisitor.people_ahead||0), estimatedWaitMinutes:Number(cloudVisitor.estimated_wait_minutes||0) } : ((queue && activeCustomerEntry) ? calculatePosition(queue.id, activeCustomerEntry.id) : { peopleAhead: 0, estimatedWaitMinutes: 0 });
 
-  const currentServingEntry = queue ? state.entries.find((e) => e.queueId === queue.id && e.status === 'serving') : null;
-  const waitingCount = queue ? state.entries.filter((e) => e.queueId === queue.id && e.status === 'waiting').length : 0;
+  const currentServingEntry = cloudVisitor ? (cloudVisitor.current_number ? {displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.current_number}`} : null) : (queue ? state.entries.find((e) => e.queueId === queue.id && e.status === 'serving') : null);
+  const waitingCount = cloudVisitor ? Number(cloudVisitor.people_ahead||0) : (queue ? state.entries.filter((e) => e.queueId === queue.id && e.status === 'waiting').length : 0);
 
   // Trigger celebration confetti when serving
   useEffect(() => {
@@ -76,7 +101,12 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     if (!queue) return;
     setIsJoining(true);
     try {
-      await joinQueue(queue.id, customerName, customerPhone);
+      if (cloudQueue) {
+        const result=await joinCloudQueue(cloudQueue.id,customerName,customerPhone);
+        localStorage.setItem('queueturn_cloud_visitor_id_'+cloudQueue.id,result.visitor_id);
+        localStorage.setItem('queueturn_cloud_visitor_token_'+cloudQueue.id,result.customer_token);
+        setCloudVisitor({visitor_id:result.visitor_id,queue_id:result.queue_id,queue_number:result.queue_number,customer_token:result.customer_token,status:'waiting',people_ahead:result.people_ahead,estimated_wait_minutes:result.estimated_wait_minutes,current_number:cloudQueue.current_number,prefix:cloudQueue.prefix,name:cloudQueue.name,is_paused:cloudQueue.is_paused,is_active:cloudQueue.is_active});
+      } else await joinQueue(queue.id, customerName, customerPhone);
       soundService.playChime();
     } catch (err) {
       console.error(err);
