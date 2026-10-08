@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase as sharedSupabase } from './supabaseClient';
 
 export type RealtimeEventType = 
   | 'QUEUE_UPDATED'
@@ -62,32 +63,15 @@ class RealtimeService {
   }
 
   private initSupabaseIfConfigured() {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-    if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('https://')) {
+    if (sharedSupabase) {
       try {
-        this.supabase = createClient(supabaseUrl, supabaseKey);
+        this.supabase = sharedSupabase;
         this.isSupabaseConnected = true;
-        console.log('[Queue Turn] Connected to Supabase Realtime');
-
-        // Subscribe to postgres changes
-        this.supabase
-          .channel('public:queues_and_entries')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries' }, (payload) => {
-            this.notifySubscribers({
-              type: 'QUEUE_UPDATED',
-              queueId: (payload.new as { queue_id?: string })?.queue_id || '',
-              data: payload,
-              timestamp: Date.now(),
-            });
-          })
-          .subscribe();
+        console.log('[QueueTurn] Connected to Supabase Realtime');
       } catch (e) {
-        console.warn('[Queue Turn] Supabase connection error:', e);
+        console.warn('[QueueTurn] Supabase connection error:', e);
       }
     }
-  }
 
   public isUsingCloudSupabase(): boolean {
     return this.isSupabaseConnected;
@@ -118,7 +102,17 @@ class RealtimeService {
       }
     }
 
-    // 3. Fallback sync storage pulse
+    // 3. Supabase Broadcast for cross-device queue events
+    if (this.supabase && message.queueId) {
+      const channel = this.supabase.channel(`queue-events:${message.queueId}`);
+      channel.send({
+        type: 'broadcast',
+        event: message.type,
+        payload: fullMessage,
+      }).catch((e) => console.warn('[QueueTurn] Supabase broadcast error:', e));
+    }
+
+    // 4. Fallback sync storage pulse
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('queueturn_sync_pulse', JSON.stringify(fullMessage));
@@ -127,15 +121,7 @@ class RealtimeService {
       }
     }
 
-    // 4. If Supabase configured, publish broadcast
-    if (this.supabase) {
-      this.supabase.channel('queue_events').send({
-        type: 'broadcast',
-        event: message.type,
-        payload: fullMessage,
-      }).catch((e) => console.warn('Supabase broadcast error:', e));
-    }
-  }
+    // Supabase broadcast is handled above.
 
   private notifySubscribers(message: RealtimeMessage) {
     this.subscribers.forEach((sub) => {
