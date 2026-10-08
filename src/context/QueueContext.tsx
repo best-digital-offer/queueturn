@@ -11,6 +11,7 @@ import {
 import { realtimeService, RealtimeMessage } from '../services/realtime';
 import { soundService } from '../services/sound';
 import { notificationService } from '../services/notifications';
+import { supabase } from '../services/supabaseClient';
 
 interface QueueContextType {
   state: AppState;
@@ -84,6 +85,60 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, []);
 
+  const refreshCloudState = useCallback(async () => {
+    if (!supabase) return false;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return false;
+
+    const { data: businesses, error: businessError } = await supabase
+      .from('businesses').select('*').eq('owner_id', session.user.id);
+    if (businessError || !businesses?.length) return false;
+
+    const businessIds = businesses.map((b:any) => b.id);
+    const { data: cloudQueues } = await supabase.from('queues').select('*').in('business_id', businessIds);
+    const queueIds = (cloudQueues || []).map((q:any) => q.id);
+    const { data: visitors } = queueIds.length
+      ? await supabase.from('queue_visitors').select('*').in('queue_id', queueIds)
+      : { data: [] as any[] };
+
+    const mappedBusinesses: Business[] = businesses.map((b:any) => ({
+      id:b.id, name:b.name, slug:b.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''),
+      ownerName:session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Owner',
+      ownerEmail:session.user.email || '', businessType:'other', createdAt:b.created_at, brandColor:'#4f46e5'
+    }));
+    const mappedQueues: Queue[] = (cloudQueues || []).map((q:any) => {
+      const serving=(visitors || []).find((v:any)=>v.queue_id===q.id && v.status==='called');
+      return {
+        id:q.id,businessId:q.business_id,name:q.name,slug:q.slug,prefix:q.prefix,startNumber:1,
+        nextNumber:q.next_number,currentNumber:q.current_number || null,currentEntryId:serving?.id || null,
+        status:q.is_paused?'paused':'active',averageServiceMinutes:q.estimated_minutes_per_person,
+        allowEstimatedWait:true,maxQueueSize:100,allowCustomerCancel:true,enableSound:true,createdAt:q.created_at
+      };
+    });
+    const mappedEntries: QueueEntry[] = (visitors || []).map((v:any) => ({
+      id:v.id,queueId:v.queue_id,businessId:mappedQueues.find(q=>q.id===v.queue_id)?.businessId || '',
+      displayNumber:(mappedQueues.find(q=>q.id===v.queue_id)?.prefix || '') + v.queue_number,
+      sequenceNumber:v.queue_number,customerSessionId:v.customer_token,customerName:v.customer_name || undefined,
+      customerPhone:v.customer_phone || undefined,status:v.status==='called'?'serving':v.status==='removed'?'cancelled':v.status,
+      joinedAt:v.joined_at,calledAt:v.called_at,completedAt:v.completed_at
+    }));
+    const mappedCounters: Counter[] = mappedQueues.map(q => ({
+      id:'cloud-counter-'+q.id,queueId:q.id,name:'Counter 1',
+      status:q.currentEntryId?'busy':'available',currentEntryId:q.currentEntryId || undefined
+    }));
+    const next: AppState = {
+      businesses:mappedBusinesses,currentBusinessId:mappedBusinesses[0].id,queues:mappedQueues,
+      counters:mappedCounters,entries:mappedEntries,profiles:[],currentUser:{
+        id:session.user.id,name:mappedBusinesses[0].ownerName,email:session.user.email || '',
+        businessId:mappedBusinesses[0].id,role:'owner',createdAt:session.user.created_at
+      }
+    };
+    setState(next);
+    saveStoredState(next);
+    if (mappedQueues[0]) setActiveQueueIdState(prev => mappedQueues.some(q=>q.id===prev) ? prev : mappedQueues[0].id);
+    return true;
+  }, []);
+
   // Set default active queue on mount or business switch
   useEffect(() => {
     const businessQueues = state.queues.filter((q) => q.businessId === state.currentBusinessId);
@@ -91,6 +146,25 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setActiveQueueIdState(businessQueues[0].id);
     }
   }, [state.currentBusinessId, state.queues, activeQueueId]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const start = async () => {
+      const loaded = await refreshCloudState();
+      if (!loaded) return;
+      channel = supabase.channel('queueturn-owner-sync')
+        .on('postgres_changes',{event:'*',schema:'public',table:'queues'},() => { refreshCloudState(); })
+        .on('postgres_changes',{event:'*',schema:'public',table:'queue_visitors'},() => { refreshCloudState(); })
+        .subscribe();
+    };
+    start();
+    const { data: listener } = supabase.auth.onAuthStateChange(() => { refreshCloudState(); });
+    return () => {
+      listener.subscription.unsubscribe();
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [refreshCloudState]);
 
   // Subscribe to real-time events across tabs & windows
   useEffect(() => {
