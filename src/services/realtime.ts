@@ -1,16 +1,10 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase as sharedSupabase } from './supabaseClient';
 
-export type RealtimeEventType = 
-  | 'QUEUE_UPDATED'
-  | 'CUSTOMER_JOINED'
-  | 'NEXT_CUSTOMER_CALLED'
-  | 'ENTRY_SKIPPED'
-  | 'ENTRY_REMOVED'
-  | 'ENTRY_COMPLETED'
-  | 'QUEUE_PAUSED'
-  | 'QUEUE_RESUMED'
-  | 'QUEUE_RESET';
+export type RealtimeEventType =
+  | 'QUEUE_UPDATED' | 'CUSTOMER_JOINED' | 'NEXT_CUSTOMER_CALLED'
+  | 'ENTRY_SKIPPED' | 'ENTRY_REMOVED' | 'ENTRY_COMPLETED'
+  | 'QUEUE_PAUSED' | 'QUEUE_RESUMED' | 'QUEUE_RESET';
 
 export interface RealtimeMessage {
   type: RealtimeEventType;
@@ -24,13 +18,12 @@ type Subscriber = (msg: RealtimeMessage) => void;
 
 class RealtimeService {
   private channel: BroadcastChannel | null = null;
-  private subscribers: Set<Subscriber> = new Set();
-  private supabase: SupabaseClient | null = null;
-  private isSupabaseConnected: boolean = false;
+  private subscribers = new Set<Subscriber>();
+  private supabase: SupabaseClient | null = sharedSupabase;
+  private cloudChannels = new Map<string, ReturnType<SupabaseClient['channel']>>();
 
   constructor() {
     this.initBroadcastChannel();
-    this.initSupabaseIfConfigured();
   }
 
   private initBroadcastChannel() {
@@ -38,73 +31,54 @@ class RealtimeService {
       try {
         this.channel = new BroadcastChannel('queueturn_realtime_bus');
         this.channel.onmessage = (event) => {
-          if (event.data && event.data.type) {
-            this.notifySubscribers(event.data as RealtimeMessage);
-          }
+          if (event.data?.type) this.notifySubscribers(event.data as RealtimeMessage);
         };
       } catch (err) {
-        console.warn('BroadcastChannel initialization error:', err);
+        console.warn('[QueueTurn] BroadcastChannel error:', err);
       }
     }
-
-    // Secondary sync fallback via storage event
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', (e) => {
         if (e.key === 'queueturn_sync_pulse' && e.newValue) {
-          try {
-            const parsed = JSON.parse(e.newValue);
-            this.notifySubscribers(parsed);
-          } catch {
-            // ignore
-          }
+          try { this.notifySubscribers(JSON.parse(e.newValue)); } catch {}
         }
       });
     }
   }
 
-  private initSupabaseIfConfigured() {
-    if (sharedSupabase) {
-      try {
-        this.supabase = sharedSupabase;
-        this.isSupabaseConnected = true;
-        console.log('[QueueTurn] Connected to Supabase Realtime');
-      } catch (e) {
-        console.warn('[QueueTurn] Supabase connection error:', e);
-      }
-    }
+  public subscribeToQueue(queueId: string, callback: Subscriber): () => void {
+    const unsubscribeLocal = this.subscribe(callback);
+    if (!this.supabase) return unsubscribeLocal;
 
-  public isUsingCloudSupabase(): boolean {
-    return this.isSupabaseConnected;
+    let channel = this.cloudChannels.get(queueId);
+    if (!channel) {
+      channel = this.supabase.channel(`queue-events:${queueId}`);
+      channel.on('broadcast', { event: '*' }, ({ payload }) => {
+        if (payload?.type) this.notifySubscribers(payload as RealtimeMessage);
+      }).subscribe();
+      this.cloudChannels.set(queueId, channel);
+    }
+    return unsubscribeLocal;
   }
 
   public subscribe(callback: Subscriber): () => void {
     this.subscribers.add(callback);
-    return () => {
-      this.subscribers.delete(callback);
-    };
+    return () => this.subscribers.delete(callback);
   }
 
   public broadcast(message: Omit<RealtimeMessage, 'timestamp'>) {
-    const fullMessage: RealtimeMessage = {
-      ...message,
-      timestamp: Date.now(),
-    };
-
-    // 1. Notify local subscribers
+    const fullMessage = { ...message, timestamp: Date.now() };
     this.notifySubscribers(fullMessage);
 
-    // 2. Broadcast to other tabs/windows
-    if (this.channel) {
-      try {
-        this.channel.postMessage(fullMessage);
-      } catch (err) {
-        console.warn('BroadcastChannel send error:', err);
-      }
-    }
+    try { this.channel?.postMessage(fullMessage); } catch {}
 
-    // 3. Supabase Broadcast for cross-device queue events
     if (this.supabase && message.queueId) {
-      const channel = this.supabase.channel(`queue-events:${message.queueId}`);
+      let channel = this.cloudChannels.get(message.queueId);
+      if (!channel) {
+        channel = this.supabase.channel(`queue-events:${message.queueId}`);
+        channel.subscribe();
+        this.cloudChannels.set(message.queueId, channel);
+      }
       channel.send({
         type: 'broadcast',
         event: message.type,
@@ -112,24 +86,18 @@ class RealtimeService {
       }).catch((e) => console.warn('[QueueTurn] Supabase broadcast error:', e));
     }
 
-    // 4. Fallback sync storage pulse
     if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('queueturn_sync_pulse', JSON.stringify(fullMessage));
-      } catch {
-        // ignore
-      }
+      try { localStorage.setItem('queueturn_sync_pulse', JSON.stringify(fullMessage)); } catch {}
     }
+  }
 
-    // Supabase broadcast is handled above.
+  public isUsingCloudSupabase() {
+    return !!this.supabase;
+  }
 
   private notifySubscribers(message: RealtimeMessage) {
     this.subscribers.forEach((sub) => {
-      try {
-        sub(message);
-      } catch (err) {
-        console.error('Subscriber callback error:', err);
-      }
+      try { sub(message); } catch (err) { console.error('[QueueTurn] subscriber error:', err); }
     });
   }
 }
