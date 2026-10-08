@@ -429,7 +429,13 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [updateStateAndPersist]);
 
-  const skipEntry = useCallback((entryId: string) => {
+  const skipEntry = useCallback(async (entryId: string) => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(entryId)) {
+      const { error } = await supabase.rpc('skip_visitor', { p_visitor_id: entryId });
+      if (error) throw error;
+      await refreshCloudState();
+      return;
+    }
     let targetQueueId = '';
     updateStateAndPersist((prev) => {
       const entry = prev.entries.find((e) => e.id === entryId);
@@ -467,7 +473,13 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [updateStateAndPersist]);
 
-  const removeEntry = useCallback((entryId: string) => {
+  const removeEntry = useCallback(async (entryId: string) => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(entryId)) {
+      const { error } = await supabase.from('queue_visitors').update({ status:'removed', completed_at:new Date().toISOString() }).eq('id',entryId);
+      if (error) throw error;
+      await refreshCloudState();
+      return;
+    }
     let targetQueueId = '';
     updateStateAndPersist((prev) => {
       const entry = prev.entries.find((e) => e.id === entryId);
@@ -504,7 +516,13 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [updateStateAndPersist]);
 
-  const completeEntry = useCallback((entryId: string) => {
+  const completeEntry = useCallback(async (entryId: string) => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(entryId)) {
+      const { error } = await supabase.rpc('complete_visitor', { p_visitor_id: entryId });
+      if (error) throw error;
+      await refreshCloudState();
+      return;
+    }
     let targetQueueId = '';
     updateStateAndPersist((prev) => {
       const entry = prev.entries.find((e) => e.id === entryId);
@@ -541,7 +559,13 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [updateStateAndPersist]);
 
-  const pauseQueue = useCallback((queueId: string) => {
+  const pauseQueue = useCallback(async (queueId: string) => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
+      const { error } = await supabase.from('queues').update({ is_paused:true }).eq('id',queueId);
+      if (error) throw error;
+      await refreshCloudState();
+      return;
+    }
     updateStateAndPersist((prev) => ({
       ...prev,
       queues: prev.queues.map((q) => (q.id === queueId ? { ...q, status: 'paused' as const } : q)),
@@ -552,7 +576,13 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [updateStateAndPersist]);
 
-  const resumeQueue = useCallback((queueId: string) => {
+  const resumeQueue = useCallback(async (queueId: string) => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
+      const { error } = await supabase.from('queues').update({ is_paused:false }).eq('id',queueId);
+      if (error) throw error;
+      await refreshCloudState();
+      return;
+    }
     updateStateAndPersist((prev) => ({
       ...prev,
       queues: prev.queues.map((q) => (q.id === queueId ? { ...q, status: 'active' as const } : q)),
