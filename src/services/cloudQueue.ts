@@ -19,7 +19,7 @@ export async function findPublicQueue(queueSlug:string, businessSlug:string) {
   const q = queues[0] as CloudQueue;
   const { data: business } = await supabase.from('businesses').select('id,name').eq('id', q.business_id).limit(1).maybeSingle();
   if (!business || (businessSlug && business.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') !== businessSlug)) return null;
-  return { queue:q, business:business as CloudBusiness };
+  return { queue:{...q, status:q.is_paused ? 'paused' : 'active', averageServiceMinutes:q.estimated_minutes_per_person, allowEstimatedWait:true}, business:business as CloudBusiness };
 }
 
 export async function joinCloudQueue(queueId:string,name?:string,phone?:string) {
