@@ -255,6 +255,19 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // ADVANCE QUEUE / NEXT CUSTOMER
   const callNext = useCallback(async (queueId: string, counterId?: string): Promise<QueueEntry | null> => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
+      const { data, error } = await supabase.rpc('call_next_visitor', { p_queue_id: queueId });
+      if (error) throw error;
+      await refreshCloudState();
+      const v:any = Array.isArray(data) ? data[0] : data;
+      if (!v) return null;
+      return {
+        id:v.id,queueId:v.queue_id,businessId:state.queues.find(q=>q.id===queueId)?.businessId || '',
+        displayNumber:(state.queues.find(q=>q.id===queueId)?.prefix || '')+v.queue_number,
+        sequenceNumber:v.queue_number,customerSessionId:v.customer_token,status:'serving',
+        joinedAt:v.joined_at,calledAt:v.called_at
+      };
+    }
     let nextCustomerEntry: QueueEntry | null = null;
 
     updateStateAndPersist((prev) => {
