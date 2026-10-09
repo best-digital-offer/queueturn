@@ -907,7 +907,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       nextNumber: data.startNumber || 1,
       currentNumber: null,
       currentEntryId: null,
-      status: 'active',
+      status: data.scheduledFor ? 'paused' : 'active',
       averageServiceMinutes: data.averageServiceMinutes || 10,
       allowEstimatedWait: data.allowEstimatedWait !== false,
       maxQueueSize: 100,
@@ -937,7 +937,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { error } = await supabase.from('queues').insert({
           id: newQueue.id, business_id: data.businessId, name: newQueue.name, slug: newQueue.slug,
           prefix: newQueue.prefix, current_number: 0, next_number: newQueue.nextNumber,
-          estimated_minutes_per_person: newQueue.averageServiceMinutes, is_active: true, is_paused: false,
+          estimated_minutes_per_person: newQueue.averageServiceMinutes, is_active: true, is_paused: Boolean(newQueue.scheduledFor),
           scheduled_for: newQueue.scheduledFor || null,
         });
         if (error) { console.error('Could not save new queue to Supabase:', error); return; }
