@@ -66,9 +66,16 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     const visitorId=localStorage.getItem('queueturn_cloud_visitor_id_'+cloudQueue.id);
     const token=localStorage.getItem('queueturn_cloud_visitor_token_'+cloudQueue.id);
     if (!visitorId || !token) return;
-    const refresh=()=>getCloudVisitor(visitorId,token).then(v=>v && setCloudVisitor(v));
-    refresh();
-    return subscribeToCloudQueue(cloudQueue.id,refresh);
+    let alive=true;
+    const refresh=async()=> {
+      const visitor=await getCloudVisitor(visitorId,token);
+      if (alive && visitor) setCloudVisitor(visitor);
+    };
+    void refresh();
+    // Public visitors cannot SELECT visitor rows under RLS, so refresh the token-protected RPC periodically.
+    const poll=window.setInterval(()=>{ void refresh(); },5000);
+    const unsubscribe=subscribeToCloudQueue(cloudQueue.id,()=>{ void refresh(); });
+    return ()=>{ alive=false; window.clearInterval(poll); unsubscribe(); };
   }, [cloudQueue?.id]);
 
   // Find business and queue
@@ -128,9 +135,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 400);
+    const visitorId=cloudQueue ? localStorage.getItem('queueturn_cloud_visitor_id_'+cloudQueue.id) : null;
+    const token=cloudQueue ? localStorage.getItem('queueturn_cloud_visitor_token_'+cloudQueue.id) : null;
+    if (visitorId && token) {
+      void getCloudVisitor(visitorId,token).then(v=>{ if(v) setCloudVisitor(v); }).finally(()=>setIsRefreshing(false));
+    } else {
+      window.setTimeout(() => setIsRefreshing(false), 400);
+    }
   };
 
   if (!business || !queue) {
