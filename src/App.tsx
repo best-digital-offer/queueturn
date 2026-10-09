@@ -181,7 +181,7 @@ function AppContent() {
         {currentView === 'dashboard' && (
           <DashboardLayout
             onNavigateHome={() => handleNavigate('landing')}
-            onOpenCustomerView={(slug) => handleNavigate('customer', slug || activeQueueSlug)}
+            onOpenCustomerView={(slug) => { const target = slug || activeQueueSlug; handleNavigate('customer', target.includes('/') ? target : (currentBusiness?.slug || activeBusinessSlug) + '/' + target); }}
             onOpenDisplayView={(slug) => handleNavigate('display', slug || activeQueueSlug)}
           />
         )}
