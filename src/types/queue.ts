@@ -42,6 +42,7 @@ export interface Queue {
   name: string;
   slug: string;
   prefix: string; // e.g. "A", "B", or ""
+  announcementTemplate?: string;
   startNumber: number;
   nextNumber: number;
   currentNumber: number | null;
