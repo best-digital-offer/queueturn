@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, X, CreditCard, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
@@ -6,11 +6,47 @@ type PlanId = 'free' | 'starter' | 'pro' | 'unlimited';
 type BillingCycle = 'monthly' | 'annual';
 
 export const BillingTab: React.FC = () => {
-  const [currentPlan, setCurrentPlan] = useState<PlanId>(() => {
-    if (typeof window === 'undefined') return 'free';
-    const saved = window.localStorage.getItem('queueturn-plan');
-    return saved === 'starter' || saved === 'pro' || saved === 'unlimited' || saved === 'free' ? saved : 'free';
-  });
+  // The database subscription record is authoritative; never trust a browser-stored plan.
+  const [currentPlan, setCurrentPlan] = useState<PlanId>('free');
+  const [isLoadingPlan, setIsLoadingPlan] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPlan = async () => {
+      if (!supabase) {
+        if (!cancelled) setIsLoadingPlan(false);
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (!session?.user) {
+        setCurrentPlan('free');
+        setIsLoadingPlan(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('billing_subscriptions')
+        .select('plan,status,updated_at')
+        .eq('user_id', session.user.id)
+        .in('status', ['active', 'trialing'])
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!error && data && ['starter', 'pro', 'unlimited'].includes(data.plan)) {
+        setCurrentPlan(data.plan as PlanId);
+      } else {
+        setCurrentPlan('free');
+      }
+      setIsLoadingPlan(false);
+    };
+    void loadPlan();
+    const { data: authListener } = supabase?.auth.onAuthStateChange(() => { void loadPlan(); }) || { data: { subscription: { unsubscribe: () => {} } } };
+    return () => {
+      cancelled = true;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
 
@@ -120,13 +156,13 @@ export const BillingTab: React.FC = () => {
                   {plan.features.map((feature) => <li key={feature.label} className={`flex items-start gap-2 ${feature.included ? '' : 'text-slate-400'}`}>{feature.included ? <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <X className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />}<span className={feature.included ? '' : 'line-through'}>{feature.label}</span></li>)}
                 </ul>
               </div>
-              <div className="p-5 pt-0 mt-auto"><button onClick={() => handleSelectPlan(plan.id)} disabled={isCurrent || isCheckingOut} className={`w-full py-3 px-4 rounded-xl text-xs font-extrabold transition text-center disabled:cursor-default ${isCurrent ? 'bg-slate-100 text-slate-400' : plan.popular ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>{isCurrent ? 'Current Plan' : isCheckingOut ? 'Opening checkout…' : plan.cta}</button></div>
+              <div className="p-5 pt-0 mt-auto"><button onClick={() => handleSelectPlan(plan.id)} disabled={isCurrent || isCheckingOut || isLoadingPlan} className={`w-full py-3 px-4 rounded-xl text-xs font-extrabold transition text-center disabled:cursor-default ${isCurrent ? 'bg-slate-100 text-slate-400' : plan.popular ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>{isLoadingPlan ? 'Checking plan…' : isCurrent ? 'Current Plan' : isCheckingOut ? 'Opening checkout…' : plan.cta}</button></div>
             </div>
           );
         })}
       </div>
 
-      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2"><CreditCard className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" /><span><strong>Billing status:</strong> Paid plan checkout uses Paddle when Sandbox credentials and price IDs are configured. Your paid plan activates only after a verified Paddle webhook; plan limits still need server-side enforcement.</span></div>
+      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2"><CreditCard className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" /><span><strong>Billing status:</strong> Your current plan is read from the verified subscription record. Paid plan checkout requires configured Paddle credentials and price IDs. Server-side usage limits are not yet enforced.</span></div>
     </div>
   );
 };
