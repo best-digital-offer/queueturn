@@ -80,11 +80,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'subscription.past_due': 'past_due',
       'subscription.paused': 'paused',
       'subscription.resumed': 'active',
-      'subscription.canceled': 'canceled',
-      'transaction.completed': 'active'
+      'subscription.canceled': 'canceled'
     };
 
-    if (eventType === 'transaction.completed' || eventType.startsWith('subscription.')) {
+    // A completed transaction is not, by itself, proof that a subscription is active.
+    // Subscription lifecycle events are the source of truth for the subscription row.
+    if (eventType.startsWith('subscription.')) {
       const resolvedUserId = userId || data.custom_data?.supabase_user_id;
       if (!resolvedUserId) {
         // Some subscription events omit custom_data; update an existing row by subscription ID.
