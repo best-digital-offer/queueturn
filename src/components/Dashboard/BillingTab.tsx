@@ -1,90 +1,56 @@
 import React, { useState } from 'react';
-import { Check, Sparkles, CreditCard, ShieldCheck, Zap } from 'lucide-react';
+import { Check, X, CreditCard, Sparkles } from 'lucide-react';
+
+type PlanId = 'free' | 'starter' | 'pro' | 'unlimited';
 
 export const BillingTab: React.FC = () => {
-  const [currentPlan, setCurrentPlan] = useState<'free' | 'starter' | 'pro' | 'business'>('starter');
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [currentPlan, setCurrentPlan] = useState<PlanId>(() => {
+    if (typeof window === 'undefined') return 'free';
+    const saved = window.localStorage.getItem('queueturn-plan');
+    return saved === 'starter' || saved === 'pro' || saved === 'unlimited' || saved === 'free' ? saved : 'free';
+  });
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  const plans = [
-    {
-      id: 'free',
-      name: 'Free',
-      priceMonthly: 0,
-      priceAnnual: 0,
-      description: 'Perfect for tiny single-station setups and trial testing.',
-      features: [
-        '1 Active Queue',
-        '100 Visitors / month',
-        'Standard QR Code Generator',
-        'Basic Dashboard Control',
-        'Public Mobile Queue Page',
-      ],
-      cta: 'Start Free',
-      popular: false,
-    },
-    {
-      id: 'starter',
-      name: 'Starter',
-      priceMonthly: 9,
-      priceAnnual: 7,
-      description: 'Ideal for neighborhood salons, single clinics, and small repair shops.',
-      features: [
-        '3 Active Queues',
-        '1,000 Visitors / month',
-        'Unlimited Staff Logins',
-        'TV Lobby Display Mode',
-        'Custom Queue Link URL',
-        'Daily Queue Analytics',
-      ],
-      cta: 'Start Starter',
-      popular: false,
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      priceMonthly: 19,
-      priceAnnual: 15,
-      description: 'For busy multi-counter offices, dental clinics, and high-volume practices.',
-      features: [
-        'Unlimited Queues',
-        'Unlimited Visitors',
-        'Multiple Service Counters',
-        'SMS Notification Support',
-        'Voice Speech Announcements',
-        'Printable Poster Customizer',
-        'Advanced Analytics & CSV Export',
-      ],
-      cta: 'Start Pro',
-      popular: true,
-    },
-    {
-      id: 'business',
-      name: 'Business',
-      priceMonthly: 49,
-      priceAnnual: 39,
-      description: 'For multi-location practices, government agencies, and service centers.',
-      features: [
-        'Multiple Physical Locations',
-        'Multi-location Central Dashboard',
-        'Granular Staff Roles (Owner/Manager)',
-        'Custom Business Branding & Colors',
-        'Priority Phone & Email Support',
-        'Enterprise SLA & Dedicated Support',
-      ],
-      cta: 'Contact Sales',
-      popular: false,
-    },
+  const plans: { id: PlanId; name: string; monthly: number; annual: number; description: string; features: { label: string; included: boolean }[]; cta: string; popular?: boolean }[] = [
+    { id: 'free', name: 'Free', monthly: 0, annual: 0, description: 'Get started with the essentials for your business.', features: [
+      { label: 'Unlimited Queues', included: true }, { label: '50 Visitors / month', included: true },
+      { label: 'Standard QR Code Generator', included: true }, { label: 'Basic Dashboard Control', included: true },
+      { label: 'Public Mobile Queue Page', included: true }, { label: 'TV Screen for 1 Queue', included: true },
+      { label: 'Customer List', included: false }, { label: 'Analytics', included: false }, { label: 'CSV Export', included: false },
+    ], cta: 'Free Plan' },
+    { id: 'starter', name: 'Starter', monthly: 19, annual: 182, description: 'For small businesses that need customer records and reporting.', features: [
+      { label: '30 Active Queues', included: true }, { label: 'Visitor allowance', included: true },
+      { label: 'Standard QR Code Generator', included: true }, { label: 'Basic Dashboard Control', included: true },
+      { label: 'Public Mobile Queue Page', included: true }, { label: 'TV Screen for 1 Queue', included: true },
+      { label: 'Customer List', included: true }, { label: 'Queue Analytics', included: true }, { label: 'CSV Export', included: true },
+      { label: 'Unlimited Staff Logins', included: true }, { label: 'TV Lobby Display Mode', included: true },
+      { label: 'Custom Queue Link URL', included: true }, { label: 'Daily Queue Analytics', included: true },
+    ], cta: 'Choose Starter' },
+    { id: 'pro', name: 'Pro', monthly: 35, annual: 336, description: 'For busy teams managing multiple counters and high-volume queues.', features: [
+      { label: '100 Active Queues', included: true }, { label: '5,000 Visitors / month', included: true },
+      { label: 'Customer List & CSV Export', included: true }, { label: 'Advanced Analytics', included: true },
+      { label: 'Multiple Service Counters', included: true }, { label: 'Standard QR Code Generator', included: true },
+      { label: 'Basic Dashboard Control', included: true }, { label: 'Public Mobile Queue Page', included: true },
+      { label: 'TV Lobby Display Mode', included: true }, { label: 'Custom Queue Link URL', included: true },
+      { label: 'Daily Queue Analytics', included: true },
+    ], cta: 'Choose Pro', popular: true },
+    { id: 'unlimited', name: 'Unlimited', monthly: 50, annual: 480, description: 'For operations that need unlimited queues and visitors.', features: [
+      { label: 'Unlimited Queues', included: true }, { label: 'Unlimited Visitors', included: true },
+      { label: 'Customer List & CSV Export', included: true }, { label: 'Advanced Analytics', included: true },
+      { label: 'Multiple Service Counters', included: true }, { label: 'Standard QR Code Generator', included: true },
+      { label: 'Basic Dashboard Control', included: true }, { label: 'Public Mobile Queue Page', included: true },
+      { label: 'TV Lobby Display Mode', included: true }, { label: 'Custom Queue Link URL', included: true },
+      { label: 'Daily Queue Analytics', included: true },
+    ], cta: 'Choose Unlimited' },
   ];
 
-  const handleSelectPlan = (planId: string) => {
-    if (planId === 'business') {
-      alert('Thank you for your interest! A Queue Turn enterprise specialist will contact your email.');
-      return;
-    }
-    setCurrentPlan(planId as 'free' | 'starter' | 'pro' | 'business');
-    setSuccessToast(`Plan successfully updated to ${planId.toUpperCase()} (Demo Billing Simulation)`);
-    setTimeout(() => setSuccessToast(null), 3500);
+  const handleSelectPlan = (planId: PlanId) => {
+    if (planId === currentPlan) return;
+    setCurrentPlan(planId);
+    window.localStorage.setItem('queueturn-plan', planId);
+    window.dispatchEvent(new CustomEvent('queueturn-plan-changed', { detail: planId }));
+    setSuccessToast('Plan preview changed to ' + planId.toUpperCase() + '. No payment was taken; checkout and plan enforcement are not connected yet.');
+    window.setTimeout(() => setSuccessToast(null), 5000);
   };
 
   return (
@@ -92,121 +58,36 @@ export const BillingTab: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Subscription & Billing</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Transparent pricing designed for small and growing service businesses.
-          </p>
-        </div>
-
-        {/* Monthly / Annual Toggle */}
-        <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
-          <button
-            onClick={() => setBillingCycle('monthly')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-              billingCycle === 'monthly' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setBillingCycle('annual')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
-              billingCycle === 'annual' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Annual
-            <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Save 20%</span>
-          </button>
+          <p className="text-sm text-slate-500 mt-0.5">Simple, transparent plans for your queue operations. Prices are in USD.</p>
         </div>
       </div>
 
-      {successToast && (
-        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2">
-          <Check className="w-4 h-4 text-emerald-600" />
-          {successToast}
-        </div>
-      )}
+      {successToast && <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold">{successToast}</div>}
 
-      {/* Plan Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {plans.map((p) => {
-          const isCurrent = currentPlan === p.id;
-          const price = billingCycle === 'annual' ? p.priceAnnual : p.priceMonthly;
-
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 pt-3">
+        {plans.map((plan) => {
+          const isCurrent = currentPlan === plan.id;
           return (
-            <div
-              key={p.id}
-              className={`rounded-3xl p-6 flex flex-col justify-between transition relative border ${
-                p.popular
-                  ? 'border-indigo-600 bg-white ring-2 ring-indigo-500/20 shadow-lg shadow-indigo-100'
-                  : 'border-slate-200 bg-white shadow-xs hover:border-slate-300'
-              }`}
-            >
-              {p.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-indigo-600 text-white text-[11px] font-extrabold uppercase px-3 py-0.5 rounded-full shadow-sm">
-                    Most Popular: Pro
-                  </span>
-                </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-extrabold text-lg text-slate-900">{p.name}</h3>
-                  {isCurrent && (
-                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      Active Plan
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-slate-500 min-h-[36px]">{p.description}</p>
-
+            <div key={plan.id} className={`relative flex flex-col rounded-3xl border transition-all duration-200 ${plan.popular ? 'border-indigo-500 bg-gradient-to-b from-indigo-50 via-white to-white ring-2 ring-indigo-400 shadow-xl shadow-indigo-200/70 xl:-translate-y-1' : 'border-slate-200 bg-white shadow-sm hover:border-slate-300'}`}>
+              {plan.popular && <div className="mx-4 -mt-3 mb-1 relative z-10 flex justify-center"><span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 px-4 py-2 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-lg shadow-indigo-300 ring-2 ring-white whitespace-nowrap"><Sparkles className="w-3.5 h-3.5" />Most Popular</span></div>}
+              <div className="flex-1 p-5 pt-4">
+                <div className="flex items-center justify-between gap-2 mb-2"><h3 className="font-extrabold text-lg text-slate-900">{plan.name}</h3>{isCurrent && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200 whitespace-nowrap">Current Plan</span>}</div>
+                <p className="text-xs leading-relaxed text-slate-500 min-h-[42px]">{plan.description}</p>
                 <div className="my-5 pb-5 border-b border-slate-100">
-                  <div className="flex items-baseline">
-                    <span className="text-4xl font-extrabold font-mono-numbers text-slate-900">${price}</span>
-                    <span className="text-xs text-slate-400 font-medium ml-1">/month</span>
-                  </div>
-                  {billingCycle === 'annual' && price > 0 && (
-                    <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">Billed annually</span>
-                  )}
+                  <div className="flex items-baseline gap-1"><span className="text-4xl font-extrabold tracking-tight text-slate-900">${plan.monthly}</span><span className="text-xs text-slate-400 font-medium">/month</span></div>
+                  {plan.monthly > 0 && <p className="mt-1 text-[11px] text-slate-500">or ${plan.annual} billed yearly</p>}
                 </div>
-
                 <ul className="space-y-2.5 text-xs text-slate-600">
-                  {p.features.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
+                  {plan.features.map((feature) => <li key={feature.label} className={`flex items-start gap-2 ${feature.included ? '' : 'text-slate-400'}`}>{feature.included ? <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <X className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />}<span className={feature.included ? '' : 'line-through'}>{feature.label}</span></li>)}
                 </ul>
               </div>
-
-              <div className="pt-6 mt-6 border-t border-slate-100">
-                <button
-                  onClick={() => handleSelectPlan(p.id)}
-                  disabled={isCurrent}
-                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition text-center ${
-                    isCurrent
-                      ? 'bg-slate-100 text-slate-400 cursor-default'
-                      : p.popular
-                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'
-                      : 'bg-slate-900 hover:bg-slate-800 text-white'
-                  }`}
-                >
-                  {isCurrent ? 'Current Plan' : p.cta}
-                </button>
-              </div>
+              <div className="p-5 pt-0 mt-auto"><button onClick={() => handleSelectPlan(plan.id)} disabled={isCurrent} className={`w-full py-3 px-4 rounded-xl text-xs font-extrabold transition text-center disabled:cursor-default ${isCurrent ? 'bg-slate-100 text-slate-400' : plan.popular ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>{isCurrent ? 'Current Plan' : plan.cta}</button></div>
             </div>
           );
         })}
       </div>
 
-      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500 flex items-center gap-2">
-        <CreditCard className="w-4 h-4 text-slate-400 shrink-0" />
-        <span>
-          Stripe billing integration ready. When live Stripe keys are provided, checkout sessions redirect automatically.
-        </span>
-      </div>
+      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2"><CreditCard className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" /><span><strong>Billing status:</strong> Plan selection is a preview only. Payments, subscriptions, and feature limits are not connected or enforced yet.</span></div>
     </div>
   );
 };
