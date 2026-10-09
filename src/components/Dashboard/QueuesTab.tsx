@@ -38,22 +38,20 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
 
   if (!currentBusiness) return null;
 
-  const handleAddAppointment = (e: React.FormEvent) => {
+  const [isAddingAppointment, setIsAddingAppointment] = useState(false);
+
+  const handleAddAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetQueue = queues.find((queue) => queue.id === appointmentQueueId);
-    if (!targetQueue || !appointmentName.trim()) {
-      setAppointmentError('Enter the customer name to continue.');
-      return;
-    }
+    if (!targetQueue || !appointmentName.trim()) { setAppointmentError('Enter the customer name to continue.'); return; }
+    setIsAddingAppointment(true);
+    setAppointmentError('');
     try {
-      addWalkIn(targetQueue.id, appointmentName.trim(), appointmentPhone.trim() || undefined);
-      setAppointmentName('');
-      setAppointmentPhone('');
-      setAppointmentError('');
-      setAppointmentQueueId(null);
+      await addWalkIn(targetQueue.id, appointmentName.trim(), appointmentPhone.trim() || undefined);
+      setAppointmentName(''); setAppointmentPhone(''); setAppointmentError(''); setAppointmentQueueId(null);
     } catch (error) {
       setAppointmentError(error instanceof Error ? error.message : 'Could not add this appointment.');
-    }
+    } finally { setIsAddingAppointment(false); }
   };
 
   const handleCreateQueue = (e: React.FormEvent) => {
@@ -236,7 +234,7 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
               {appointmentError && <p role="alert" className="text-xs text-rose-600">{appointmentError}</p>}
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => { setAppointmentQueueId(null); setAppointmentError(''); }} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">Add Customer</button>
+                <button type="submit" disabled={isAddingAppointment} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-wait text-white rounded-xl text-xs font-bold">{isAddingAppointment ? "Adding…" : "Add Customer"}</button>
               </div>
             </form>
           </div>
