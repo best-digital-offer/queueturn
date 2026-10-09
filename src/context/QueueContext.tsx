@@ -40,7 +40,7 @@ interface QueueContextType {
   pauseQueue: (queueId: string) => void;
   resumeQueue: (queueId: string) => void;
   resetQueue: (queueId: string) => void;
-  addWalkIn: (queueId: string, name?: string, phone?: string, notes?: string) => QueueEntry;
+  addWalkIn: (queueId: string, name?: string, phone?: string, notes?: string) => Promise<QueueEntry>;
   
   // Customer Experience
   joinQueue: (queueId: string, customerName?: string, customerPhone?: string) => Promise<QueueEntry>;
@@ -782,75 +782,48 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     clearCustomerSession(queueId);
   }, [removeEntry]);
 
-  const addWalkIn = useCallback((queueId: string, name?: string, phone?: string, notes?: string): QueueEntry => {
+  const addWalkIn = useCallback(async (queueId: string, name?: string, phone?: string, notes?: string): Promise<QueueEntry> => {
     if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
       const queue = state.queues.find((q) => q.id === queueId);
-      if (!queue) throw new Error('Queue not found.');
-      const optimistic: QueueEntry = {
-        id: 'walkin-pending-' + Date.now(), queueId, businessId: queue.businessId,
-        displayNumber: '…', sequenceNumber: 0, customerSessionId: 'walkin-pending-' + Date.now(),
-        customerName: name?.trim() || 'Walk-in Guest', customerPhone: phone?.trim(), notes: notes?.trim(),
-        status: 'waiting', joinedAt: new Date().toISOString(),
+      if (!queue) throw new Error('Queue not found. Please refresh and try again.');
+      const today = new Date();
+      const todayKey = String(today.getFullYear()) + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+      const isFutureAppointment = Boolean(queue.scheduledFor && queue.scheduledFor > todayKey);
+      const { data, error } = await supabase.rpc(isFutureAppointment ? 'add_queue_appointment' : 'join_queue', {
+        p_queue_id: queueId, p_customer_name: name?.trim() || 'Walk-in Guest', p_customer_phone: phone?.trim() || null,
+      });
+      if (error) throw new Error(error.message || 'Could not add customer. Please try again.');
+      const row = Array.isArray(data) ? data[0] : data;
+      await refreshCloudState();
+      const seq = Number(row?.queue_number ?? row?.ticket_number ?? 0);
+      const entry: QueueEntry = {
+        id: String(row?.id || row?.visitor_id || ('walkin-' + Date.now())), queueId, businessId: queue.businessId,
+        displayNumber: seq ? (queue.prefix || '') + seq : 'Added', sequenceNumber: seq,
+        customerSessionId: String(row?.customer_token || row?.id || ('walkin-' + Date.now())),
+        customerName: name?.trim() || 'Walk-in Guest', customerPhone: phone?.trim() || undefined, notes: notes?.trim(),
+        status: 'waiting', joinedAt: String(row?.joined_at || new Date().toISOString()),
       };
-      void (async () => {
-        const today = new Date();
-        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const isFutureAppointment = Boolean(queue.scheduledFor && queue.scheduledFor > todayKey);
-        const { error } = await supabase.rpc(isFutureAppointment ? 'add_queue_appointment' : 'join_queue', { p_queue_id: queueId, p_customer_name: name?.trim() || 'Walk-in Guest', p_customer_phone: phone?.trim() || null });
-        if (error) {
-          console.error('Could not add walk-in to cloud queue:', error);
-          window.alert(`Could not add customer to the live queue: ${error.message || 'Please try again.'}`);
-          return;
-        }
-        await refreshCloudState();
-        realtimeService.broadcast({ type: 'CUSTOMER_JOINED', queueId });
-      })();
-      return optimistic;
+      realtimeService.broadcast({ type: 'CUSTOMER_JOINED', queueId, data: entry });
+      return entry;
     }
     let createdEntry: QueueEntry | null = null;
     updateStateAndPersist((prev) => {
       const queue = prev.queues.find((q) => q.id === queueId);
-      if (!queue) return prev;
-
+      if (!queue) throw new Error('Queue not found.');
       const seq = queue.nextNumber;
-      const displayNumber = queue.prefix ? `${queue.prefix}${seq}` : `${seq}`;
-
+      const displayNumber = queue.prefix ? queue.prefix + seq : String(seq);
       createdEntry = {
-        id: 'entry_walkin_' + Date.now(),
-        queueId,
-        businessId: queue.businessId,
-        displayNumber,
-        sequenceNumber: seq,
-        customerSessionId: 'walkin_' + Date.now(),
-        customerName: name?.trim() || 'Walk-in Guest',
-        customerPhone: phone?.trim(),
-        notes: notes?.trim(),
-        status: 'waiting',
-        joinedAt: new Date().toISOString(),
+        id: 'entry_walkin_' + Date.now(), queueId, businessId: queue.businessId, displayNumber, sequenceNumber: seq,
+        customerSessionId: 'walkin_' + Date.now(), customerName: name?.trim() || 'Walk-in Guest',
+        customerPhone: phone?.trim(), notes: notes?.trim(), status: 'waiting', joinedAt: new Date().toISOString(),
       };
-
-      const updatedQueues = prev.queues.map((q) => {
-        if (q.id === queueId) {
-          return { ...q, nextNumber: q.nextNumber + 1 };
-        }
-        return q;
-      });
-
-      return {
-        ...prev,
-        queues: updatedQueues,
-        entries: [...prev.entries, createdEntry!],
-      };
+      const updatedQueues = prev.queues.map((q) => q.id === queueId ? { ...q, nextNumber: q.nextNumber + 1 } : q);
+      return { ...prev, queues: updatedQueues, entries: [...prev.entries, createdEntry] };
     });
-
-    const entry = createdEntry as unknown as QueueEntry;
-    realtimeService.broadcast({
-      type: 'CUSTOMER_JOINED',
-      queueId,
-      data: entry,
-    });
+    const entry = createdEntry as QueueEntry;
+    realtimeService.broadcast({ type: 'CUSTOMER_JOINED', queueId, data: entry });
     return entry;
-  }, [updateStateAndPersist]);
+  }, [state.queues, updateStateAndPersist, refreshCloudState]);
 
   const getCustomerActiveEntry = useCallback((queueId: string): QueueEntry | null => {
     const entryId = getSavedCustomerSession(queueId);
