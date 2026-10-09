@@ -152,9 +152,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       }
       if (cloudQueue) {
         const result=await joinCloudQueue(cloudQueue.id,customerName,customerPhone);
-        localStorage.setItem('queueturn_cloud_visitor_id_'+cloudQueue.id,result.visitor_id);
+        const visitorId = result?.visitor_id || result?.id;
+        if (!visitorId || !result?.customer_token || result?.queue_number == null) {
+          throw new Error('The queue service returned an incomplete ticket. Please refresh and try again.');
+        }
+        localStorage.setItem('queueturn_cloud_visitor_id_'+cloudQueue.id, visitorId);
         localStorage.setItem('queueturn_cloud_visitor_token_'+cloudQueue.id,result.customer_token);
-        setCloudVisitor({visitor_id:result.visitor_id,queue_id:result.queue_id,queue_number:result.queue_number,customer_token:result.customer_token,status:'waiting',people_ahead:result.people_ahead,estimated_wait_minutes:result.estimated_wait_minutes,current_number:cloudQueue.current_number,prefix:cloudQueue.prefix,name:cloudQueue.name,is_paused:cloudQueue.is_paused,is_active:cloudQueue.is_active});
+        setCloudVisitor({visitor_id:visitorId,queue_id:result.queue_id || cloudQueue.id,queue_number:result.queue_number,customer_token:result.customer_token,status:'waiting',people_ahead:result.people_ahead ?? 0,estimated_wait_minutes:result.estimated_wait_minutes ?? 0,current_number:cloudQueue.current_number,prefix:cloudQueue.prefix,name:cloudQueue.name,is_paused:cloudQueue.is_paused,is_active:cloudQueue.is_active});
       } else await joinQueue(queue.id, customerName, customerPhone);
       soundService.playChime();
     } catch (err) {
@@ -162,9 +166,11 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       const message = err instanceof Error ? err.message : '';
       setJoinError(/paused/i.test(message)
         ? 'This queue is paused right now. Please check with staff before joining.'
-        : /closed|not accepting/i.test(message)
-          ? 'This queue is closed and is not accepting new tickets.'
-          : 'We could not create your ticket. Please try again in a moment.');
+        : /closed|not accepting|unavailable/i.test(message)
+          ? 'This queue is currently unavailable. Please refresh the page or check with staff.'
+          : (supabase && message && !/fetch|network/i.test(message))
+            ? `Ticket could not be created: ${message}`
+            : 'We could not connect to the queue service. Please check your connection and try again.');
     } finally {
       setIsJoining(false);
     }
