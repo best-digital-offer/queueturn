@@ -301,17 +301,24 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // ADVANCE QUEUE / NEXT CUSTOMER
   const callNext = useCallback(async (queueId: string, counterId?: string): Promise<QueueEntry | null> => {
     if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
+      // Unlock browser audio while the Next Customer click still has user activation.
+      soundService.prepareForAnnouncement();
       const { data, error } = await supabase.rpc('call_next_visitor', { p_queue_id: queueId });
       if (error) throw error;
       await refreshCloudState();
       const v:any = Array.isArray(data) ? data[0] : data;
       if (!v) return null;
-      return {
-        id:v.id,queueId:v.queue_id,businessId:state.queues.find(q=>q.id===queueId)?.businessId || '',
-        displayNumber:(state.queues.find(q=>q.id===queueId)?.prefix || '')+v.queue_number,
+      const queue = state.queues.find(q=>q.id===queueId);
+      const entry: QueueEntry = {
+        id:v.id,queueId:v.queue_id,businessId:queue?.businessId || '',
+        displayNumber:(queue?.prefix || '')+v.queue_number,
         sequenceNumber:v.queue_number,customerSessionId:v.customer_token,status:'serving',
         joinedAt:v.joined_at,calledAt:v.called_at
       };
+      // The cloud branch previously returned before making the announcement.
+      soundService.announceTurn(entry.displayNumber, counterId ? state.counters.find(c=>c.id===counterId)?.name : 'Counter 1');
+      realtimeService.broadcast({ type:'NEXT_CUSTOMER_CALLED', queueId, data:{entryId:entry.id,displayNumber:entry.displayNumber,counterName:counterId ? state.counters.find(c=>c.id===counterId)?.name : 'Counter 1'} });
+      return entry;
     }
     let nextCustomerEntry: QueueEntry | null = null;
 
