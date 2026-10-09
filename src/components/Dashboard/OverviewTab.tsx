@@ -62,6 +62,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   }
 
   const handleNextCustomer = async () => {
+    // Start/resume audio directly from the button click before waiting on Supabase.
+    soundService.prepareForAnnouncement();
     setIsCallingNext(true);
     try {
       await callNext(activeQueue.id, selectedCounterId || undefined);
