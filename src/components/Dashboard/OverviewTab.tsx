@@ -240,7 +240,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 </p>
                 <div className="pt-2 flex justify-center gap-2">
                   <button
-                    onClick={() => soundService.announceTurn(servingEntry.displayNumber, servingEntry.counterName)}
+                    onClick={() => soundService.announceTurn(servingEntry.displayNumber, servingEntry.counterName, activeQueue.announcementTemplate)}
                     className="px-3 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg text-xs font-semibold transition flex items-center gap-1"
                     title="Re-announce turn"
                   >
