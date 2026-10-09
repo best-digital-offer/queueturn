@@ -74,9 +74,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const customerId = data.customer_id;
     const priceId = data.items?.[0]?.price?.id || data.items?.[0]?.price_id;
     const statusMap: Record<string, string> = {
-      'subscription.created': 'active',
+      // `subscription.created` can be incomplete or trialing; trust Paddle's status.
+      'subscription.created': data.status || 'pending',
       'subscription.activated': 'active',
-      'subscription.updated': data.status || 'active',
+      'subscription.trialing': 'trialing',
+      'subscription.updated': data.status || 'pending',
       'subscription.past_due': 'past_due',
       'subscription.paused': 'paused',
       'subscription.resumed': 'active',
