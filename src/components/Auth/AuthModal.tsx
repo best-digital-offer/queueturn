@@ -65,8 +65,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement | null;
     const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement | null;
     if (supabase && emailInput && passwordInput) {
-      const { error } = await supabase.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
+      const { data, error } = await supabase.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
       if (error) { alert(error.message); return; }
+      if (data.user) {
+        const { data: existingBusinesses, error: lookupError } = await supabase
+          .from('businesses').select('id,name').eq('owner_id', data.user.id).limit(1);
+        if (lookupError) { alert(lookupError.message); return; }
+        const pendingRaw = localStorage.getItem('queueturn_pending_onboarding');
+        if ((!existingBusinesses || existingBusinesses.length === 0) && pendingRaw) {
+          try {
+            const draft = JSON.parse(pendingRaw) as {
+              businessName:string; ownerName:string; businessType:BusinessType; queueName:string;
+              prefixFormat:'A'|'B'|''; startNumber:number; avgServiceMinutes:number; allowEstimatedWait:boolean;
+            };
+            const { data: biz, error: bizError } = await supabase.from('businesses')
+              .insert({ owner_id:data.user.id, name:draft.businessName }).select('id,name').single();
+            if (bizError) throw bizError;
+            const queueSlugValue = draft.queueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'general-service';
+            const { data: q, error: qError } = await supabase.from('queues').insert({
+              business_id:biz.id, name:draft.queueName, slug:queueSlugValue, prefix:draft.prefixFormat,
+              next_number:draft.startNumber, estimated_minutes_per_person:draft.avgServiceMinutes
+            }).select('id,slug').single();
+            if (qError) throw qError;
+            setBusinessName(draft.businessName);
+            setOwnerName(draft.ownerName);
+            setBusinessType(draft.businessType);
+            setQueueName(draft.queueName);
+            setPrefixFormat(draft.prefixFormat);
+            setStartNumber(draft.startNumber);
+            setAvgServiceMinutes(draft.avgServiceMinutes);
+            setAllowEstimatedWait(draft.allowEstimatedWait);
+            setCreatedBizId(biz.id);
+            setCreatedBizSlug(draft.businessName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'business');
+            setCreatedQueueSlug(q.slug);
+            localStorage.removeItem('queueturn_pending_onboarding');
+            setMode('success');
+            return;
+          } catch (setupError) {
+            console.error(setupError);
+            alert(setupError instanceof Error ? setupError.message : 'Signed in, but business setup could not finish. Please retry.');
+            return;
+          }
+        }
+        localStorage.removeItem('queueturn_pending_onboarding');
+      }
     }
     onSuccess();
     onClose();
@@ -81,7 +123,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (error) throw error;
         if (!data.user) throw new Error('Account creation failed.');
         if (!data.session) {
-          alert('Account created. Please confirm your email, then sign in to continue.');
+          localStorage.setItem('queueturn_pending_onboarding', JSON.stringify({
+            businessName, ownerName, businessType, queueName, prefixFormat, startNumber,
+            avgServiceMinutes, allowEstimatedWait
+          }));
+          alert('Account created. Please confirm your email, then sign in to finish setting up your business and queue.');
           setMode('login');
           return;
         }
@@ -103,6 +149,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setCreatedBizId(biz.id);
         setCreatedBizSlug(bizSlug);
         setCreatedQueueSlug(q.slug);
+        localStorage.removeItem('queueturn_pending_onboarding');
         setMode('success');
       } else {
         const biz = createBusiness({ name: businessName, ownerName, email, businessType });
@@ -244,7 +291,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="email"
                     required
-                    defaultValue="sarah@abcclinic.example"
+                    
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -256,7 +303,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="password"
                     required
-                    defaultValue="••••••••"
+                    
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
