@@ -952,37 +952,53 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const getAnalytics = useCallback((queueId: string) => {
-    const queueEntries = state.entries.filter((e) => e.queueId === queueId);
-    const completed = queueEntries.filter((e) => e.status === 'completed').length;
-    const skipped = queueEntries.filter((e) => e.status === 'skipped').length;
-    const waiting = queueEntries.filter((e) => e.status === 'waiting').length;
-    const totalToday = queueEntries.length;
+    const now = new Date();
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const queueEntries = state.entries.filter((entry) => entry.queueId === queueId);
+    const todayEntries = queueEntries.filter((entry) => {
+      const joinedAt = new Date(entry.joinedAt).getTime();
+      return Number.isFinite(joinedAt) && joinedAt >= dayStart && joinedAt <= now.getTime();
+    });
+    const completedToday = todayEntries.filter((entry) => entry.status === 'completed');
+    const skipped = todayEntries.filter((entry) => entry.status === 'skipped').length;
+    const waiting = queueEntries.filter((entry) => entry.status === 'waiting').length;
 
-    // Hourly distribution
-    const hoursMap: { [hour: string]: number } = {
-      '9 AM': 4,
-      '10 AM': 8,
-      '11 AM': 11,
-      '12 PM': 7,
-      '1 PM': 5,
-      '2 PM': 9,
-      '3 PM': 6,
-      '4 PM': 3,
-    };
+    const waitDurations = completedToday
+      .concat(todayEntries.filter((entry) => entry.status === 'serving'))
+      .map((entry) => entry.calledAt ? (new Date(entry.calledAt).getTime() - new Date(entry.joinedAt).getTime()) / 60000 : null)
+      .filter((minutes): minutes is number => minutes !== null && Number.isFinite(minutes) && minutes >= 0);
+    const serviceDurations = completedToday
+      .map((entry) => entry.calledAt && entry.completedAt
+        ? (new Date(entry.completedAt).getTime() - new Date(entry.calledAt).getTime()) / 60000
+        : null)
+      .filter((minutes): minutes is number => minutes !== null && Number.isFinite(minutes) && minutes >= 0);
 
-    const hourlyVolume = Object.entries(hoursMap).map(([hour, count]) => ({
-      hour,
+    const hourCounts = Array.from({ length: 24 }, () => 0);
+    todayEntries.forEach((entry) => {
+      const joinedAt = new Date(entry.joinedAt);
+      if (Number.isFinite(joinedAt.getTime())) hourCounts[joinedAt.getHours()] += 1;
+    });
+    const hourlyVolume = hourCounts.map((count, hourIndex) => ({
+      hour: new Date(2000, 0, 1, hourIndex).toLocaleTimeString([], { hour: 'numeric' }),
       count,
     }));
+    const peakHourIndex = hourCounts.indexOf(Math.max(...hourCounts));
+    const peakHour = hourCounts.some((count) => count > 0)
+      ? `${new Date(2000, 0, 1, peakHourIndex).toLocaleTimeString([], { hour: 'numeric' })} - ${new Date(2000, 0, 1, peakHourIndex + 1).toLocaleTimeString([], { hour: 'numeric' })}`
+      : 'No activity yet';
+
+    const average = (values: number[]) => values.length
+      ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
+      : 0;
 
     return {
-      totalToday,
-      completed,
+      totalToday: todayEntries.length,
+      completed: completedToday.length,
       skipped,
       waiting,
-      avgWaitMinutes: 14,
-      avgServiceMinutes: 8,
-      peakHour: '11:00 AM - 12:00 PM',
+      avgWaitMinutes: average(waitDurations),
+      avgServiceMinutes: average(serviceDurations),
+      peakHour,
       hourlyVolume,
     };
   }, [state.entries]);
