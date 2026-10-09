@@ -41,7 +41,7 @@ function workEmailError(value: string): string | null {
   const normalized = value.trim().toLowerCase();
   const parts = normalized.split('@');
   if (parts.length !== 2 || !parts[0] || !parts[1] || !parts[1].includes('.')) return 'Enter a valid work email address.';
-  const domain = parts[1].replace(/\\.$/, '');
+  const domain = parts[1].replace(/\.$/, '');
   if (PERSONAL_EMAIL_DOMAINS.has(domain)) return 'Please use your company or business email. Personal email providers such as Gmail are not allowed.';
   if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) return 'Temporary/disposable email addresses are not allowed. Please use your work email.';
   return null;
