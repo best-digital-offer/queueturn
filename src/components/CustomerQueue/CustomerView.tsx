@@ -118,6 +118,9 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const activeCustomerEntry = cloudVisitor && (cloudVisitor.status === 'waiting' || cloudVisitor.status === 'called') ? { id:cloudVisitor.visitor_id, displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.queue_number}`, status:cloudVisitor.status === 'called' ? 'serving' : cloudVisitor.status, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
   const positionInfo = cloudVisitor ? { peopleAhead:Number(cloudVisitor.people_ahead||0), estimatedWaitMinutes:Number(cloudVisitor.estimated_wait_minutes||0) } : ((queue && activeCustomerEntry) ? calculatePosition(queue.id, activeCustomerEntry.id) : { peopleAhead: 0, estimatedWaitMinutes: 0 });
 
+  const scheduledDate = cloudQueue?.scheduled_for || queue?.scheduledFor;
+  const isFutureScheduled = Boolean(scheduledDate && scheduledDate > new Date().toLocaleDateString('en-CA'));
+
   const currentServingEntry = cloudQueue
     ? (cloudStats?.current_number ? {displayNumber:`${cloudStats.prefix || cloudQueue.prefix || ''}${cloudStats.current_number}`} : null)
     : (queue ? state.entries.find((e) => e.queueId === queue.id && e.status === 'serving') : null);
@@ -147,6 +150,9 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     setIsJoining(true);
     setJoinError('');
     try {
+      if (isFutureScheduled) {
+        throw new Error('This queue is scheduled to open on ' + new Date(scheduledDate + 'T12:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) + '.');
+      }
       if (queue.status === 'paused' || queue.status === 'closed') {
         throw new Error(queue.status === 'paused' ? 'This queue is paused right now. Please check with staff before joining.' : 'This queue is closed and is not accepting new tickets.');
       }
@@ -552,6 +558,12 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
             </p>
           </div>
 
+          {isFutureScheduled && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+              <p className="font-bold">Queue opens on {new Date(scheduledDate + 'T12:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</p>
+              <p className="mt-1 text-xs">Tickets will be available on the scheduled date. Please return then to join this queue.</p>
+            </div>
+          )}
           <form onSubmit={handleJoin} className="space-y-3">
             <div>
               <label htmlFor="customer-name" className="block text-xs font-semibold text-slate-700 mb-1">
@@ -583,11 +595,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
             <button
               type="submit"
-              disabled={isJoining || queue.status === 'closed' || queue.status === 'paused'}
+              disabled={isJoining || isFutureScheduled || queue.status === 'closed' || queue.status === 'paused'}
               className="w-full py-4 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-extrabold text-base shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition active:scale-[0.98] disabled:opacity-60 flex items-center justify-center space-x-2"
             >
               {isJoining ? (
                 <span>Generating Ticket...</span>
+              ) : isFutureScheduled ? (
+                <span>Opens {new Date(scheduledDate + 'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</span>
               ) : queue.status === 'closed' ? (
                 <span>Queue Closed</span>
               ) : queue.status === 'paused' ? (
