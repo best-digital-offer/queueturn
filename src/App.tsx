@@ -13,6 +13,7 @@ import { DisplayView } from './components/PublicDisplay/DisplayView';
 import { IndustryPage } from './components/SeoPages/IndustryPage';
 import { AuthModal } from './components/Auth/AuthModal';
 import { supabase } from './services/supabaseClient';
+import { LegalPages } from './components/LegalPages';
 
 function AppContent() {
   const { currentBusiness, activeQueue, state } = useQueue();
@@ -41,11 +42,15 @@ function AppContent() {
   }, []);
 
   // Read URL query params on initial load
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo'>(() => {
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo' | 'legal'>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      const pageParam = params.get('page');
+      if (pageParam) return 'legal';
+      const pageParam = params.get('page');
       const viewParam = params.get('view');
-      if (viewParam === 'customer') return 'customer';
+      if (pageParam) setCurrentView('legal');
+      else if (viewParam === 'customer') return 'customer';
       if (viewParam === 'display') return 'display';
       if (viewParam === 'dashboard') return 'dashboard';
       if (viewParam === 'admin') return 'admin';
@@ -99,7 +104,7 @@ function AppContent() {
   }, []);
 
   const handleNavigate = (
-    view: 'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo',
+    view: 'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo' | 'legal',
     params?: string
   ) => {
     setCurrentView(view);
@@ -119,6 +124,8 @@ function AppContent() {
       const url = new URL(window.location.href);
       if (view === 'landing') {
         url.search = '';
+      } else if (view === 'legal') {
+        url.search = params || '?page=about';
       } else {
         url.searchParams.set('view', view);
         if (params) {
@@ -162,6 +169,8 @@ function AppContent() {
 
       {/* Main View Router */}
       <div className="flex-1 flex flex-col">
+        {currentView === 'legal' && <LegalPages page={new URLSearchParams(window.location.search).get('page') || 'about'} />}
+
         {currentView === 'landing' && (
           <LandingPage
             onStartFree={() => {
