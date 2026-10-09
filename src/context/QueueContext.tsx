@@ -767,7 +767,11 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
       void (async () => {
         const { error } = await supabase.rpc('join_queue', { p_queue_id: queueId, p_customer_name: name?.trim() || 'Walk-in Guest', p_customer_phone: phone?.trim() || null });
-        if (error) { console.error('Could not add walk-in to cloud queue:', error); return; }
+        if (error) {
+          console.error('Could not add walk-in to cloud queue:', error);
+          window.alert(`Could not add customer to the live queue: ${error.message || 'Please try again.'}`);
+          return;
+        }
         await refreshCloudState();
         realtimeService.broadcast({ type: 'CUSTOMER_JOINED', queueId });
       })();
