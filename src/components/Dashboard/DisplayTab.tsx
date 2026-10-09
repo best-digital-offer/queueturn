@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tv, ExternalLink, Maximize, Volume2, Sparkles, Check, Settings2 } from 'lucide-react';
+import { Tv, ExternalLink, Maximize, Volume2, Sparkles, Check, Settings2, Copy, CheckCheck } from 'lucide-react';
 import { useQueue } from '../../context/QueueContext';
 import { soundService } from '../../services/sound';
 
@@ -11,6 +11,7 @@ export const DisplayTab: React.FC<DisplayTabProps> = ({ onOpenDisplayView }) => 
   const { activeQueue, currentBusiness } = useQueue();
   const [enableSound, setEnableSound] = useState(soundService.isSoundEnabled());
   const [enableVoice, setEnableVoice] = useState(soundService.isVoiceEnabled());
+  const [linkCopied, setLinkCopied] = useState(false);
 
   if (!activeQueue || !currentBusiness) return null;
 
@@ -66,6 +67,24 @@ export const DisplayTab: React.FC<DisplayTabProps> = ({ onOpenDisplayView }) => 
               <span>Up Next: {activeQueue.prefix ? `${activeQueue.prefix}24, ${activeQueue.prefix}25` : '24, 25'}</span>
               <span className="text-emerald-400">● Live Auto-Sync</span>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700">TV Display Link</label>
+            <div className="flex gap-2">
+              <input readOnly value={displayUrl} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-xs text-slate-700" aria-label="TV display URL" />
+              <button
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(displayUrl); setLinkCopied(true); window.setTimeout(()=>setLinkCopied(false),1800); }
+                  catch { window.prompt('Copy this TV display link:', displayUrl); }
+                }}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-200"
+              >
+                {linkCopied ? <CheckCheck className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                {linkCopied ? 'Copied' : 'Copy link'}
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">Open this link on the TV browser or send it to the device connected to your TV.</p>
           </div>
 
           <div className="flex flex-wrap gap-3">
