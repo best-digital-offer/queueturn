@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, ListFilter, Check, Play, Pause, ExternalLink, Settings, Users, Clock, CalendarDays, Copy, CheckCheck } from 'lucide-react';
+import { Plus, ListFilter, Check, Play, Pause, ExternalLink, Settings, Users, Clock, CalendarDays, Copy, CheckCheck, UserPlus } from 'lucide-react';
 import { useQueue } from '../../context/QueueContext';
 
 interface QueuesTabProps {
@@ -17,6 +17,7 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
     activeQueue, 
     setActiveQueueId, 
     createQueue, 
+    addWalkIn,
     pauseQueue, 
     resumeQueue,
     state 
@@ -30,8 +31,30 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
   const [allowEstimatedWait, setAllowEstimatedWait] = useState(true);
   const [scheduledFor, setScheduledFor] = useState('');
   const [copiedDisplayQueue, setCopiedDisplayQueue] = useState<string | null>(null);
+  const [appointmentQueueId, setAppointmentQueueId] = useState<string | null>(null);
+  const [appointmentName, setAppointmentName] = useState('');
+  const [appointmentPhone, setAppointmentPhone] = useState('');
+  const [appointmentError, setAppointmentError] = useState('');
 
   if (!currentBusiness) return null;
+
+  const handleAddAppointment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetQueue = queues.find((queue) => queue.id === appointmentQueueId);
+    if (!targetQueue || !appointmentName.trim()) {
+      setAppointmentError('Enter the customer name to continue.');
+      return;
+    }
+    try {
+      addWalkIn(targetQueue.id, appointmentName.trim(), appointmentPhone.trim() || undefined);
+      setAppointmentName('');
+      setAppointmentPhone('');
+      setAppointmentError('');
+      setAppointmentQueueId(null);
+    } catch (error) {
+      setAppointmentError(error instanceof Error ? error.message : 'Could not add this appointment.');
+    }
+  };
 
   const handleCreateQueue = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,6 +148,14 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
 
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
                 <button
+                  onClick={() => { setAppointmentQueueId(q.id); setAppointmentError(''); }}
+                  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
+                  title={q.scheduledFor && q.scheduledFor > new Date().toLocaleDateString('en-CA') ? 'Add future appointment' : 'Add customer'}
+                  aria-label="Add customer or appointment"
+                >
+                  <UserPlus className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => setActiveQueueId(q.id)}
                   disabled={isSelected}
                   className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition text-center ${
@@ -180,6 +211,37 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
           );
         })}
       </div>
+
+
+      {/* ADD CUSTOMER / FUTURE APPOINTMENT MODAL */}
+      {appointmentQueueId && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-900">Add Customer / Appointment</h3>
+            <p className="text-xs text-slate-500 mt-1 mb-4">
+              Add a customer directly to <strong>{queues.find((q) => q.id === appointmentQueueId)?.name}</strong>
+              {queues.find((q) => q.id === appointmentQueueId)?.scheduledFor
+                ? ` for ${new Date(`${queues.find((q) => q.id === appointmentQueueId)?.scheduledFor}T12:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`
+                : ' for the current service day'}.
+            </p>
+            <form onSubmit={handleAddAppointment} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Customer name</label>
+                <input autoFocus required value={appointmentName} onChange={(e) => setAppointmentName(e.target.value)} placeholder="Enter customer name" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Phone number (optional)</label>
+                <input type="tel" value={appointmentPhone} onChange={(e) => setAppointmentPhone(e.target.value)} placeholder="Enter phone number" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              {appointmentError && <p role="alert" className="text-xs text-rose-600">{appointmentError}</p>}
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button type="button" onClick={() => { setAppointmentQueueId(null); setAppointmentError(''); }} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">Add Customer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* CREATE QUEUE MODAL */}
       {showCreateModal && (
