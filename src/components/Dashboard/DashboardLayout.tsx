@@ -56,7 +56,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'queues', label: 'Queues', icon: ListOrdered },
+    { id: 'queues', label: 'Queues / Appointments', icon: ListOrdered },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'display', label: 'Display Screen', icon: Tv },
     { id: 'qrcode', label: 'QR Code', icon: QrCode },
