@@ -33,7 +33,8 @@ export const SettingsTab: React.FC = () => {
   const [brandColor, setBrandColor] = useState(currentBusiness?.brandColor || '#2563eb');
 
   const [queueName, setQueueName] = useState(activeQueue?.name || '');
-  const [queuePrefix, setQueuePrefix] = useState(activeQueue?.prefix || 'A');
+  const [queuePrefix, setQueuePrefix] = useState(activeQueue?.prefix || "A");
+  const [announcementTemplate, setAnnouncementTemplate] = useState(activeQueue?.announcementTemplate || "Now serving, number {number}, at {counter}.");
   const [avgServiceMinutes, setAvgServiceMinutes] = useState(activeQueue?.averageServiceMinutes || 8);
   const [allowEstimatedWait, setAllowEstimatedWait] = useState(activeQueue?.allowEstimatedWait ?? true);
 
@@ -59,7 +60,8 @@ export const SettingsTab: React.FC = () => {
     e.preventDefault();
     updateQueueSettings(activeQueue.id, {
       name: queueName,
-      prefix: queuePrefix,
+      prefix: queuePrefix.trim().toUpperCase(),
+      announcementTemplate: announcementTemplate.trim(),
       averageServiceMinutes: Number(avgServiceMinutes),
       allowEstimatedWait,
     });
@@ -205,10 +207,28 @@ export const SettingsTab: React.FC = () => {
                     type="text"
                     maxLength={3}
                     value={queuePrefix}
-                    onChange={(e) => setQueuePrefix(e.target.value)}
+                    onChange={(e) => setQueuePrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 uppercase"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Spoken Announcement
+                </label>
+                <textarea
+                  value={announcementTemplate}
+                  onChange={(e) => setAnnouncementTemplate(e.target.value)}
+                  maxLength={180}
+                  rows={3}
+                  placeholder="Now serving, number {number}, at {counter}."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Use {`{number}`} for the ticket, {`{counter}`} for the counter, and {`{business}`} for your business name.
+                </p>
               </div>
 
               <div>
