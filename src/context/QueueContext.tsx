@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppState, Business, Counter, Queue, QueueEntry, UserProfile, EntryStatus, BusinessType } from '../types/queue';
 import { 
   loadStoredState, 
@@ -75,6 +75,7 @@ const QueueContext = createContext<QueueContextType | undefined>(undefined);
 export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>(() => loadStoredState());
   const [activeQueueId, setActiveQueueIdState] = useState<string>('');
+  const cloudRefreshRun = useRef(0);
 
   // Sync state with storage changes
   const updateStateAndPersist = useCallback((updater: (prev: AppState) => AppState) => {
@@ -87,7 +88,12 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const refreshCloudState = useCallback(async () => {
     if (!supabase) return false;
+    // Ignore older overlapping refreshes so a slow pre-login request cannot overwrite
+    // a newer authenticated cloud snapshot with demo state.
+    const runId = ++cloudRefreshRun.current;
+    const isLatestRun = () => runId === cloudRefreshRun.current;
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (!isLatestRun()) return false;
     const clearLocalOwnerState = () => {
       const demoState = resetToDemoState();
       setState(demoState);
@@ -97,23 +103,45 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Never leave a previous owner's cloud data visible after sign-out or an
     // account switch. Keep the demo state as the unauthenticated fallback.
     if (sessionError || !session?.user) {
-      clearLocalOwnerState();
+      if (isLatestRun()) clearLocalOwnerState();
       return false;
     }
 
     const { data: businesses, error: businessError } = await supabase
       .from('businesses').select('*').eq('owner_id', session.user.id);
+    if (!isLatestRun()) return false;
     if (businessError || !businesses?.length) {
-      clearLocalOwnerState();
+      // A signed-in owner must never see the demo queue as if it were real business data.
+      const emptyCloudState: AppState = {
+        businesses: [], currentBusinessId: '', queues: [], counters: [], entries: [],
+        profiles: [], currentUser: {
+          id: session.user.id,
+          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Owner',
+          email: session.user.email || '', businessId: '', role: 'owner', createdAt: session.user.created_at
+        }
+      };
+      setState(emptyCloudState);
+      saveStoredState(emptyCloudState);
+      setActiveQueueIdState('');
       return false;
     }
 
     const businessIds = businesses.map((b:any) => b.id);
-    const { data: cloudQueues } = await supabase.from('queues').select('*').in('business_id', businessIds);
+    const { data: cloudQueues, error: queuesError } = await supabase.from('queues').select('*').in('business_id', businessIds);
+    if (!isLatestRun()) return false;
+    if (queuesError) {
+      console.error('Could not refresh cloud queues:', queuesError);
+      return false;
+    }
     const queueIds = (cloudQueues || []).map((q:any) => q.id);
-    const { data: visitors } = queueIds.length
+    const { data: visitors, error: visitorsError } = queueIds.length
       ? await supabase.from('queue_visitors').select('*').in('queue_id', queueIds)
-      : { data: [] as any[] };
+      : { data: [] as any[], error: null };
+    if (!isLatestRun()) return false;
+    if (visitorsError) {
+      console.error('Could not refresh cloud visitors:', visitorsError);
+      return false;
+    }
 
     const mappedBusinesses: Business[] = businesses.map((b:any) => ({
       id:b.id, name:b.name, slug:b.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,''),
@@ -147,6 +175,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         businessId:mappedBusinesses[0].id,role:'owner',createdAt:session.user.created_at
       }
     };
+    if (!isLatestRun()) return false;
     setState(next);
     saveStoredState(next);
     if (mappedQueues[0]) setActiveQueueIdState(prev => mappedQueues.some(q=>q.id===prev) ? prev : mappedQueues[0].id);
