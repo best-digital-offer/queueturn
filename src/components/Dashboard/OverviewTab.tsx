@@ -250,6 +250,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                     Re-announce
                   </button>
                   <button
+                    onClick={() => skipEntry(servingEntry.id)}
+                    className="px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-semibold transition flex items-center gap-1"
+                    title="Skip this currently serving customer"
+                  >
+                    <SkipForward className="w-3.5 h-3.5" />
+                    Skip
+                  </button>
+                  <button
                     onClick={() => completeEntry(servingEntry.id)}
                     className="px-3 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-xs font-semibold transition flex items-center gap-1"
                   >
