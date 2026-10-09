@@ -153,7 +153,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return {
         id:q.id,businessId:q.business_id,name:q.name,slug:q.slug,prefix:q.prefix,startNumber:1,
         nextNumber:q.next_number,currentNumber:q.current_number || null,currentEntryId:serving?.id || null,
-        status:q.is_paused?'paused':'active',averageServiceMinutes:q.estimated_minutes_per_person,
+        status:q.is_paused?"paused":"active",averageServiceMinutes:q.estimated_minutes_per_person,announcementTemplate:q.announcement_template || "Now serving, number {number}, at {counter}.",
         allowEstimatedWait:true,maxQueueSize:100,allowCustomerCancel:true,enableSound:true,createdAt:q.created_at
       };
     });
@@ -332,7 +332,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         joinedAt:v.joined_at,calledAt:v.called_at
       };
       // The cloud branch previously returned before making the announcement.
-      soundService.announceTurn(entry.displayNumber, counterId ? state.counters.find(c=>c.id===counterId)?.name : 'Counter 1');
+      soundService.announceTurn(entry.displayNumber, counterId ? state.counters.find(c=>c.id===counterId)?.name : 'Counter 1', queue?.announcementTemplate, state.businesses.find(b=>b.id===queue?.businessId)?.name);
       realtimeService.broadcast({ type:'NEXT_CUSTOMER_CALLED', queueId, data:{entryId:entry.id,displayNumber:entry.displayNumber,counterName:counterId ? state.counters.find(c=>c.id===counterId)?.name : 'Counter 1'} });
       return entry;
     }
@@ -975,6 +975,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (updates.name !== undefined) cloudUpdates.name = updates.name;
       if (updates.slug !== undefined) cloudUpdates.slug = updates.slug;
       if (updates.prefix !== undefined) cloudUpdates.prefix = updates.prefix;
+      if (updates.announcementTemplate !== undefined) cloudUpdates.announcement_template = updates.announcementTemplate;
       if (updates.nextNumber !== undefined) cloudUpdates.next_number = updates.nextNumber;
       if (updates.currentNumber !== undefined) cloudUpdates.current_number = updates.currentNumber ?? 0;
       if (updates.averageServiceMinutes !== undefined) cloudUpdates.estimated_minutes_per_person = updates.averageServiceMinutes;
