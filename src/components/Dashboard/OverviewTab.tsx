@@ -52,6 +52,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   const [walkInPhone, setWalkInPhone] = useState('');
   const [walkInNotes, setWalkInNotes] = useState('');
   const [isCallingNext, setIsCallingNext] = useState(false);
+  const isFutureScheduled = Boolean(activeQueue?.scheduledFor && activeQueue.scheduledFor > new Date().toLocaleDateString('en-CA'));
 
   if (!activeQueue) {
     return (
@@ -98,7 +99,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Today's Queue</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{isFutureScheduled ? 'Scheduled Queue' : "Today's Queue"}</h1>
             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
               activeQueue.status === 'active'
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -107,6 +108,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               {activeQueue.status === 'active' ? '● Active' : '❚❚ Paused'}
             </span>
           </div>
+          {isFutureScheduled && <p className="mt-1 text-xs font-semibold text-violet-700">Scheduled to open {new Date(activeQueue.scheduledFor + 'T12:00:00').toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</p>}
           <p className="text-sm text-slate-500 mt-0.5">
             Queue: <span className="font-semibold text-slate-700">{activeQueue.name}</span> (Prefix: {activeQueue.prefix || 'None'})
           </p>
@@ -264,7 +266,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           {/* GIANT NEXT CUSTOMER BUTTON */}
           <button
             onClick={handleNextCustomer}
-            disabled={waitingEntries.length === 0 || isCallingNext || activeQueue.status === 'paused'}
+            disabled={waitingEntries.length === 0 || isCallingNext || activeQueue.status === 'paused' || isFutureScheduled}
             className="w-full py-4 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-2xl font-black text-lg tracking-wide shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition active:scale-[0.98] flex items-center justify-center space-x-2"
           >
             {isCallingNext ? (
