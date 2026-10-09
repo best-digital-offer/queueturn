@@ -180,7 +180,7 @@ function AppContent() {
 
         {currentView === 'dashboard' && (
           <DashboardLayout
-            onNavigateHome={() => handleNavigate(isSignedIn ? 'dashboard' : 'landing')}
+            onNavigateHome={() => handleNavigate('landing')}
             onOpenCustomerView={(slug) => handleNavigate('customer', slug || activeQueueSlug)}
             onOpenDisplayView={(slug) => handleNavigate('display', slug || activeQueueSlug)}
           />
