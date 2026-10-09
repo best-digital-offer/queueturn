@@ -17,7 +17,6 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
     currentBusiness, 
     queues, 
     activeQueue, 
-    setActiveQueueId, 
     createQueue, 
     addWalkIn,
     pauseQueue, 
