@@ -12,10 +12,33 @@ import { CustomerView } from './components/CustomerQueue/CustomerView';
 import { DisplayView } from './components/PublicDisplay/DisplayView';
 import { IndustryPage } from './components/SeoPages/IndustryPage';
 import { AuthModal } from './components/Auth/AuthModal';
+import { supabase } from './services/supabaseClient';
 
 function AppContent() {
   const { currentBusiness, activeQueue, state } = useQueue();
-  const isSignedIn = Boolean(state.currentUser);
+  // Demo storage includes a fake demo user, so authentication must come from Supabase,
+  // never from state.currentUser. This prevents fresh browsers from treating demo data
+  // as a real signed-in business account.
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const isSignedIn = isAuthenticated === true;
+
+  useEffect(() => {
+    if (!supabase) {
+      setIsAuthenticated(false);
+      return;
+    }
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setIsAuthenticated(Boolean(data.session?.user));
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session?.user));
+    });
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Read URL query params on initial load
   const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo'>(() => {
@@ -115,6 +138,17 @@ function AppContent() {
       window.history.replaceState({}, '', url.toString());
     }
   }, [isSignedIn, currentView]);
+
+  // A dashboard URL opened in a fresh browser must not silently show seeded demo data.
+  // Ask the visitor to sign in, then load their own Supabase business and queues.
+  useEffect(() => {
+    if (isAuthenticated === false && currentView === 'dashboard') {
+      setCurrentView('landing');
+      setAuthModalMode('login');
+      setAuthModalOpen(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [isAuthenticated, currentView]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
