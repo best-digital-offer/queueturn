@@ -444,7 +444,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     return nextCustomerEntry;
-  }, [updateStateAndPersist]);
+  }, [updateStateAndPersist, refreshCloudState, state.queues, state.businesses, state.counters]);
 
   const callSpecific = useCallback(async (entryId: string, counterId?: string) => {
     if (supabase && /^[0-9a-f-]{36}$/i.test(entryId)) {
