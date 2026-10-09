@@ -43,6 +43,7 @@ export interface Queue {
   slug: string;
   prefix: string; // e.g. "A", "B", or ""
   announcementTemplate?: string;
+  scheduledFor?: string; // YYYY-MM-DD, optional future service date
   startNumber: number;
   nextNumber: number;
   currentNumber: number | null;
