@@ -19,6 +19,20 @@ class SoundService {
     return this.audioCtx;
   }
 
+  /** Resume audio and prime speech synthesis from a user interaction before async requests. */
+  public prepareForAnnouncement() {
+    try {
+      const ctx = this.getAudioContext();
+      if (ctx?.state === 'suspended') void ctx.resume();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.getVoices();
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      }
+    } catch (e) {
+      console.warn('Could not prepare audio announcement:', e);
+    }
+  }
+
   public setSoundEnabled(enabled: boolean) {
     this.soundEnabled = enabled;
   }
@@ -83,17 +97,20 @@ class SoundService {
     }
 
     try {
-      setTimeout(() => {
-        const text = counterName 
-          ? `Now serving, ${displayNumber}, at ${counterName}.`
-          : `Now serving, number ${displayNumber}.`;
-
+      const text = counterName 
+        ? `Now serving, ${displayNumber}, at ${counterName}.`
+        : `Now serving, number ${displayNumber}.`;
+      const speak = () => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 0.95;
         utterance.pitch = 1.05;
         utterance.volume = 0.9;
         window.speechSynthesis.speak(utterance);
-      }, 700);
+      };
+      // Avoid a delayed setTimeout that can lose the browser's audio activation.
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      window.speechSynthesis.cancel();
+      speak();
     } catch (err) {
       console.warn('Voice announcement error:', err);
     }
