@@ -26,7 +26,10 @@ export async function joinCloudQueue(queueId:string,name?:string,phone?:string) 
   if (!supabase) throw new Error('Cloud service unavailable');
   const { data, error } = await supabase.rpc('join_queue',{p_queue_id:queueId,p_customer_name:name||null,p_customer_phone:phone||null});
   if (error) throw error;
-  return Array.isArray(data) ? data[0] : data;
+  const row = Array.isArray(data) ? data[0] : data;
+  // The SQL RPC returns the visitor primary key as `id`; normalize the name
+  // expected by the customer view while retaining compatibility with both shapes.
+  return row ? { ...row, visitor_id: row.visitor_id || row.id } : row;
 }
 
 export async function getCloudQueueStats(queueId:string) {
