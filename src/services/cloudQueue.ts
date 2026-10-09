@@ -29,6 +29,16 @@ export async function joinCloudQueue(queueId:string,name?:string,phone?:string) 
   return Array.isArray(data) ? data[0] : data;
 }
 
+export async function getCloudQueueStats(queueId:string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('get_public_queue_stats', { p_queue_id: queueId });
+  if (error) {
+    console.error('Could not refresh public queue stats:', error);
+    return null;
+  }
+  return Array.isArray(data) ? (data[0] ?? null) : data;
+}
+
 export async function getCloudVisitor(visitorId:string, token:string) {
   if (!supabase) return null;
   const { data, error } = await supabase.rpc('get_visitor_status',{p_visitor_id:visitorId,p_customer_token:token});
