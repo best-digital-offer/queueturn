@@ -50,7 +50,7 @@ interface QueueContextType {
 
   // Business & Queue Management
   createBusiness: (data: { name: string; ownerName: string; email: string; businessType: BusinessType }) => Business;
-  createQueue: (data: { businessId: string; name: string; prefix: string; startNumber: number; averageServiceMinutes: number; allowEstimatedWait: boolean }) => Queue;
+  createQueue: (data: { businessId: string; name: string; prefix: string; startNumber: number; averageServiceMinutes: number; allowEstimatedWait: boolean; scheduledFor?: string }) => Queue;
   updateQueueSettings: (queueId: string, updates: Partial<Queue>) => void;
   updateBusinessSettings: (businessId: string, updates: Partial<Business>) => void;
   addCounter: (queueId: string, name: string) => void;
@@ -154,7 +154,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         id:q.id,businessId:q.business_id,name:q.name,slug:q.slug,prefix:q.prefix,startNumber:1,
         nextNumber:q.next_number,currentNumber:q.current_number || null,currentEntryId:serving?.id || null,
         status:q.is_paused?"paused":"active",averageServiceMinutes:q.estimated_minutes_per_person,announcementTemplate:q.announcement_template || "Now serving, number {number}, at {counter}.",
-        allowEstimatedWait:true,maxQueueSize:100,allowCustomerCancel:true,enableSound:true,createdAt:q.created_at
+        allowEstimatedWait:true,maxQueueSize:100,allowCustomerCancel:true,enableSound:true,scheduledFor:q.scheduled_for || undefined,createdAt:q.created_at
       };
     });
     const mappedEntries: QueueEntry[] = (visitors || []).map((v:any) => ({
@@ -316,6 +316,10 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // ADVANCE QUEUE / NEXT CUSTOMER
   const callNext = useCallback(async (queueId: string, counterId?: string): Promise<QueueEntry | null> => {
+    const scheduledQueue = state.queues.find(q => q.id === queueId);
+    if (scheduledQueue?.scheduledFor && scheduledQueue.scheduledFor > new Date().toLocaleDateString('en-CA')) {
+      throw new Error(`This queue is scheduled to open on ${scheduledQueue.scheduledFor}.`);
+    }
     if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
       // Unlock browser audio while the Next Customer click still has user activation.
       soundService.prepareForAnnouncement();
@@ -907,7 +911,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newBiz;
   }, [updateStateAndPersist]);
 
-  const createQueue = useCallback((data: { businessId: string; name: string; prefix: string; startNumber: number; averageServiceMinutes: number; allowEstimatedWait: boolean }): Queue => {
+  const createQueue = useCallback((data: { businessId: string; name: string; prefix: string; startNumber: number; averageServiceMinutes: number; allowEstimatedWait: boolean; scheduledFor?: string }): Queue => {
     const queueNameSlug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'general-service';
     const isCloudBusiness = Boolean(supabase && /^[0-9a-f-]{36}$/i.test(data.businessId));
     const businessSlug = state.businesses.find((business) => business.id === data.businessId)?.slug
@@ -933,6 +937,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       maxQueueSize: 100,
       allowCustomerCancel: true,
       enableSound: true,
+      scheduledFor: data.scheduledFor || undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -957,6 +962,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           id: newQueue.id, business_id: data.businessId, name: newQueue.name, slug: newQueue.slug,
           prefix: newQueue.prefix, current_number: 0, next_number: newQueue.nextNumber,
           estimated_minutes_per_person: newQueue.averageServiceMinutes, is_active: true, is_paused: false,
+          scheduled_for: newQueue.scheduledFor || null,
         });
         if (error) { console.error('Could not save new queue to Supabase:', error); return; }
         await refreshCloudState();
