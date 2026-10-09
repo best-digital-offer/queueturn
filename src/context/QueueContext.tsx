@@ -119,7 +119,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       id:v.id,queueId:v.queue_id,businessId:mappedQueues.find(q=>q.id===v.queue_id)?.businessId || '',
       displayNumber:(mappedQueues.find(q=>q.id===v.queue_id)?.prefix || '') + v.queue_number,
       sequenceNumber:v.queue_number,customerSessionId:v.customer_token,customerName:v.customer_name || undefined,
-      customerPhone:v.customer_phone || undefined,status:v.status==='called'?'serving':v.status==='removed'?'cancelled':v.status,
+      customerPhone:v.customer_phone || undefined,status:v.status==='called'?'serving':v.status==='served'?'completed':v.status==='removed'?'cancelled':v.status,
       joinedAt:v.joined_at,calledAt:v.called_at,completedAt:v.completed_at
     }));
     const mappedCounters: Counter[] = mappedQueues.map(q => ({
