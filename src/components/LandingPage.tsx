@@ -45,6 +45,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [mockAhead, setMockAhead] = useState(3);
   const [mockNextInLine, setMockNextInLine] = useState(['A24', 'A25', 'A26', 'A27']);
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const [landingBillingCycle, setLandingBillingCycle] = useState<'monthly' | 'annual'>('monthly');
 
   // Interactive Hero Widget Simulator
   const handleHeroNextCustomer = () => {
@@ -426,6 +427,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </p>
         </div>
 
+        <div className="flex flex-col items-center gap-2 mb-7">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Choose billing cycle</p>
+          <div role="tablist" aria-label="Pricing billing cycle" className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-sm">
+            <button type="button" role="tab" aria-selected={landingBillingCycle === "monthly"} onClick={() => setLandingBillingCycle("monthly")} className={landingBillingCycle === "monthly" ? "rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-indigo-700 shadow-sm" : "rounded-lg px-5 py-2.5 text-sm font-bold text-slate-500"}>Monthly</button>
+            <button type="button" role="tab" aria-selected={landingBillingCycle === "annual"} onClick={() => setLandingBillingCycle("annual")} className={landingBillingCycle === "annual" ? "rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-indigo-700 shadow-sm" : "rounded-lg px-5 py-2.5 text-sm font-bold text-slate-500"}>Annual <span className="ml-1 text-[10px] font-extrabold text-emerald-600">SAVE ~20%</span></button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Free */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
@@ -436,8 +445,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 $0<span className="text-xs font-normal text-slate-500">/mo</span>
               </div>
               <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 1 Queue</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 100 visitors/month</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 7 Active Queues/month</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 50 visitors/month</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> QR Code generator</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Basic dashboard</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Public queue page</li>
@@ -457,10 +466,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <h3 className="font-bold text-lg text-slate-900">Starter</h3>
               <p className="text-xs text-slate-500 mt-1">For neighborhood shops</p>
               <div className="my-4 text-3xl font-extrabold font-mono-numbers text-slate-900">
-                $9<span className="text-xs font-normal text-slate-500">/mo</span>
+                ${landingBillingCycle === 'monthly' ? 19 : 182}<span className="text-xs font-normal text-slate-500">{landingBillingCycle === 'monthly' ? '/mo' : '/year'}</span>
               </div>
               <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 3 Queues</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> {landingBillingCycle === 'monthly' ? '30 Active Queues/month' : '75 Active Queues/month'}</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 1,000 visitors/month</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited staff logins</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Custom queue page</li>
@@ -485,13 +494,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <h3 className="font-bold text-lg text-slate-900">Pro</h3>
               <p className="text-xs text-slate-500 mt-1">For busy clinics & offices</p>
               <div className="my-4 text-3xl font-extrabold font-mono-numbers text-slate-900">
-                $19<span className="text-xs font-normal text-slate-500">/mo</span>
+                ${landingBillingCycle === 'monthly' ? 35 : 336}<span className="text-xs font-normal text-slate-500">{landingBillingCycle === 'monthly' ? '/mo' : '/year'}</span>
               </div>
               <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited queues</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> {landingBillingCycle === 'monthly' ? '100 Active Queues/month' : '150 Active Queues/month'}</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited visitors</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Multiple counters</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> SMS notifications ready</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 5,000 visitors/month</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Advanced analytics</li>
                 <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Custom branding</li>
               </ul>
@@ -504,27 +513,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </button>
           </div>
 
-          {/* Business */}
+          {/* Unlimited */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
             <div>
-              <h3 className="font-bold text-lg text-slate-900">Business</h3>
-              <p className="text-xs text-slate-500 mt-1">For multi-location groups</p>
+              <h3 className="font-bold text-lg text-slate-900">Unlimited</h3>
+              <p className="text-xs text-slate-500 mt-1">For operations needing unlimited queues and visitors</p>
               <div className="my-4 text-3xl font-extrabold font-mono-numbers text-slate-900">
-                $49<span className="text-xs font-normal text-slate-500">/mo</span>
+                ${landingBillingCycle === 'monthly' ? 50 : 480}<span className="text-xs font-normal text-slate-500">{landingBillingCycle === 'monthly' ? '/mo' : '/year'}</span>
               </div>
               <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Multiple locations</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Multi-location dashboard</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Granular staff roles</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Priority support</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Dedicated SLA</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited queues</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited visitors</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Customer list & CSV export</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Advanced analytics</li>
+                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Multiple service counters</li>
               </ul>
             </div>
             <button
-              onClick={() => alert('Sales inquiry dispatched. An account specialist will contact you.')}
+              onClick={() => { window.location.href = '/?page=contact'; }}
               className="mt-6 w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition"
             >
-              Contact Sales
+              Choose Unlimited
             </button>
           </div>
         </div>
@@ -543,7 +552,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <p className="text-xs text-slate-500 max-w-sm">
               Simple digital visitor queues for clinics, salons, auto shops, and local businesses. Let customers wait comfortably without standing in line.
             </p>
-            <p className="text-[11px] text-slate-400">© 2026 Queue Turn Technologies (queueturn.com). All rights reserved.</p>
+            <p className="text-[11px] text-slate-400">© 2026 N&N Digitals. All rights reserved.</p>
+          </div>
+
+          <div className="col-span-2 space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Contact</h4>
+            <p className="text-xs text-slate-500"><a href="mailto:support@queueturn.com" className="hover:text-indigo-600">support@queueturn.com</a><br />7672022484</p>
+            <p className="text-xs leading-5 text-slate-500">N&N Digitals, Sree Hemadurga Towers, 207, 2nd Floor, A Block, Alwin Cross, Hyderabad 500059, India.</p>
           </div>
 
           <div>
@@ -570,8 +585,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <ul className="space-y-2 text-xs text-slate-500">
               <li><a href="#how-it-works" className="hover:text-indigo-600">How It Works</a></li>
               <li><a href="#pricing" className="hover:text-indigo-600">Pricing Plans</a></li>
-              <li><span className="text-slate-400">Privacy Policy</span></li>
-              <li><span className="text-slate-400">Terms of Service</span></li>
+              <li><a href="/?page=about" className="hover:text-indigo-600">About Us</a></li>
+              <li><a href="/?page=contact" className="hover:text-indigo-600">Contact Us</a></li>
+              <li><a href="/?page=faq" className="hover:text-indigo-600">FAQ</a></li>
+              <li><a href="/?page=privacy" className="hover:text-indigo-600">Privacy Policy</a></li>
+              <li><a href="/?page=terms" className="hover:text-indigo-600">Terms of Service</a></li>
+              <li><a href="/?page=refund" className="hover:text-indigo-600">Refund & Cancellation</a></li>
             </ul>
           </div>
         </div>
