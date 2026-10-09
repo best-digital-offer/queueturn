@@ -222,6 +222,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <QueuesTab
             onOpenCustomerView={onOpenCustomerView}
             onOpenDisplayView={onOpenDisplayView}
+            onManageQueue={(queueId) => {
+              setActiveQueueId(queueId);
+              setActiveTab('dashboard');
+              setMobileMenuOpen(false);
+            }}
           />
         )}
         {activeTab === 'customers' && <CustomersTab />}
