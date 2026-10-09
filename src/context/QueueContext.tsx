@@ -793,7 +793,10 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: 'waiting', joinedAt: new Date().toISOString(),
       };
       void (async () => {
-        const { error } = await supabase.rpc('join_queue', { p_queue_id: queueId, p_customer_name: name?.trim() || 'Walk-in Guest', p_customer_phone: phone?.trim() || null });
+        const today = new Date();
+        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const isFutureAppointment = Boolean(queue.scheduledFor && queue.scheduledFor > todayKey);
+        const { error } = await supabase.rpc(isFutureAppointment ? 'add_queue_appointment' : 'join_queue', { p_queue_id: queueId, p_customer_name: name?.trim() || 'Walk-in Guest', p_customer_phone: phone?.trim() || null });
         if (error) {
           console.error('Could not add walk-in to cloud queue:', error);
           window.alert(`Could not add customer to the live queue: ${error.message || 'Please try again.'}`);
