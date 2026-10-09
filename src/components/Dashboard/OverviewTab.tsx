@@ -52,7 +52,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   const [walkInPhone, setWalkInPhone] = useState('');
   const [walkInNotes, setWalkInNotes] = useState('');
   const [isCallingNext, setIsCallingNext] = useState(false);
-  const isFutureScheduled = Boolean(activeQueue?.scheduledFor && activeQueue.scheduledFor > new Date().toLocaleDateString('en-CA'));
+  const isFutureScheduled = Boolean(activeQueue?.scheduledFor && activeQueue.scheduledFor > (() => { const now = new Date(); return String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); })());
 
   if (!activeQueue) {
     return (
@@ -120,7 +120,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
           >
             <UserPlus className="w-4 h-4" />
-            Add Walk-in Guest
+            Add Appointment
           </button>
 
           <button
@@ -400,7 +400,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
                 <p className="font-semibold text-sm text-slate-600">No Customers Waiting</p>
                 <p className="text-xs text-slate-400 mt-1">
-                  Share your queue QR code or add a walk-in guest above.
+                  Share your queue QR code or add an appointment above.
                 </p>
               </div>
             )}
@@ -412,9 +412,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       {showWalkInModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-xl border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-900">Add Walk-in Customer</h3>
+            <h3 className="text-lg font-bold text-slate-900">Add Appointment</h3>
             <p className="text-xs text-slate-500 mt-0.5 mb-4">
-              Manually add a customer who arrived at your desk without a smartphone.
+              Add a customer appointment directly to this queue.
             </p>
 
             <form onSubmit={handleCreateWalkIn} className="space-y-3">
@@ -470,7 +470,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   type="submit"
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-sm"
                 >
-                  Add to Line
+                  Add Appointment
                 </button>
               </div>
             </form>
