@@ -12,6 +12,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useQueue } from '../../context/QueueContext';
+import { findPublicQueue, getCloudQueueStats } from '../../services/cloudQueue';
+import { supabase } from '../../services/supabaseClient';
 import { soundService } from '../../services/sound';
 import { QrCodeCanvas } from '../Common/QrCodeCanvas';
 
@@ -29,12 +31,55 @@ export const DisplayView: React.FC<DisplayViewProps> = ({
   const [soundEnabled, setSoundEnabled] = useState(soundService.isSoundEnabled());
   const [currentTime, setCurrentTime] = useState('');
   const [animateNumber, setAnimateNumber] = useState(false);
+  const [publicQueue, setPublicQueue] = useState<any>(null);
+  const [publicStats, setPublicStats] = useState<any>(null);
+  const [publicWaiting, setPublicWaiting] = useState<any[]>([]);
 
   const business = state.businesses[0];
   const queue = state.queues.find((q) => q.slug === queueSlug || q.id === queueSlug) || state.queues[0];
 
   const servingEntry = queue ? state.entries.find((e) => e.queueId === queue.id && e.status === 'serving') : null;
   const waitingEntries = queue ? state.entries.filter((e) => e.queueId === queue.id && e.status === 'waiting').slice(0, 5) : [];
+
+  // Public TV screens can run on a separate device without an owner login.
+  // Poll the public queue endpoints so they do not depend on stale local context.
+  useEffect(() => {
+    if (!supabase || !queueSlug) return;
+    let alive = true;
+    const refresh = async () => {
+      const found = await findPublicQueue(queueSlug, '');
+      if (!alive || !found) return;
+      setPublicQueue(found.queue);
+      const stats = await getCloudQueueStats(found.queue.id);
+      if (!alive || !stats) return;
+      setPublicStats(stats);
+      const { data, error } = await supabase.rpc('get_public_waiting_numbers', { p_queue_id: found.queue.id });
+      if (!error && alive && Array.isArray(data)) {
+        setPublicWaiting(data.slice(0, 5).map((v: any) => ({
+          id: v.visitor_id || `${found.queue.id}-${v.queue_number}`,
+          displayNumber: `${stats.prefix || found.queue.prefix || ''}${v.queue_number}`,
+          status: 'waiting'
+        })));
+      }
+    };
+    void refresh();
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 3000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      alive = false;
+      window.clearInterval(poll);
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [queueSlug]);
+
+  const liveQueue = publicQueue || queue;
+  const liveServingEntry = publicQueue
+    ? (publicStats?.current_number ? { displayNumber: `${publicStats.prefix || publicQueue.prefix || ''}${publicStats.current_number}`, counterName: 'Counter 1' } : null)
+    : servingEntry;
+  const liveWaitingEntries = publicQueue ? publicWaiting : waitingEntries;
 
   // Live clock
   useEffect(() => {
@@ -91,7 +136,7 @@ export const DisplayView: React.FC<DisplayViewProps> = ({
               {business?.name || 'ABC CLINIC'}
             </h1>
             <p className="text-xs font-semibold text-indigo-400 tracking-wider uppercase">
-              {queue?.name || 'General Service'} • Live Queue Display
+              {liveQueue?.name || 'General Service'} • Live Queue Display
             </p>
           </div>
         </div>
@@ -151,20 +196,20 @@ export const DisplayView: React.FC<DisplayViewProps> = ({
               <span>NOW SERVING</span>
             </div>
 
-            {servingEntry ? (
+            {liveServingEntry ? (
               <div className="space-y-4">
                 <div 
                   className={`text-8xl sm:text-9xl lg:text-[140px] font-black font-mono-numbers tracking-tight text-white drop-shadow-md transition-transform duration-300 ${
                     animateNumber ? 'scale-110 text-emerald-300' : 'scale-100'
                   }`}
                 >
-                  {servingEntry.displayNumber}
+                  {liveServingEntry.displayNumber}
                 </div>
 
                 <div className="mt-4 pt-6 border-t border-slate-800/80 inline-block px-8 py-3 rounded-2xl bg-slate-800/60 border border-slate-700/50">
                   <span className="text-slate-400 text-sm font-semibold uppercase tracking-wider block">Please proceed to</span>
                   <span className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1 block">
-                    {servingEntry.counterName || 'Counter 1'}
+                    {liveServingEntry.counterName || 'Counter 1'}
                   </span>
                 </div>
               </div>
@@ -186,13 +231,13 @@ export const DisplayView: React.FC<DisplayViewProps> = ({
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">NEXT IN LINE</span>
               <span className="text-xs font-bold text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-800/50">
-                {waitingEntries.length} Waiting
+                {(publicQueue ? Number(publicStats?.total_waiting || 0) : waitingEntries.length)} Waiting
               </span>
             </div>
 
             <div className="mt-4 space-y-2.5 flex-1">
-              {waitingEntries.length > 0 ? (
-                waitingEntries.map((entry, idx) => (
+              {liveWaitingEntries.length > 0 ? (
+                liveWaitingEntries.map((entry, idx) => (
                   <div
                     key={entry.id}
                     className={`flex items-center justify-between p-3.5 rounded-2xl border transition ${
