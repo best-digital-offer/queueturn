@@ -133,9 +133,36 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     }
   };
 
-  const handleLeave = () => {
+  const handleLeave = async () => {
     if (!queue || !activeCustomerEntry) return;
-    leaveQueue(queue.id, activeCustomerEntry.id);
+    if (cloudQueue && supabase) {
+      const visitorKey = 'queueturn_cloud_visitor_id_' + cloudQueue.id;
+      const tokenKey = 'queueturn_cloud_visitor_token_' + cloudQueue.id;
+      const visitorId = localStorage.getItem(visitorKey);
+      const token = localStorage.getItem(tokenKey);
+      if (!visitorId || !token) {
+        setJoinError('We could not verify this ticket. Refresh the page and try again.');
+        setShowLeaveConfirm(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase.rpc('leave_queue', {
+          p_visitor_id: visitorId,
+          p_customer_token: token,
+        });
+        if (error) throw error;
+        if (data !== true) throw new Error('This ticket is no longer eligible to leave the queue.');
+        localStorage.removeItem(visitorKey);
+        localStorage.removeItem(tokenKey);
+        setCloudVisitor(null);
+        setJoinError('');
+      } catch (error) {
+        console.error('Could not leave cloud queue:', error);
+        setJoinError('We could not cancel this ticket right now. Please try again.');
+      }
+    } else {
+      leaveQueue(queue.id, activeCustomerEntry.id);
+    }
     setShowLeaveConfirm(false);
   };
 
