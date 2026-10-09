@@ -75,9 +75,8 @@ export const DisplayView: React.FC<DisplayViewProps> = ({
     }
   };
 
-  const qrUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/?view=customer&q=${business?.slug || 'abc-clinic'}/${queue?.slug || 'general-service'}`
-    : 'https://queueturn.com';
+  // Keep printed display QR codes on the canonical custom domain.
+  const qrUrl = `https://queueturn.com/?view=customer&q=${business?.slug || 'abc-clinic'}/${queue?.slug || 'general-service'}`;
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between selection:bg-indigo-500 overflow-hidden font-sans">
