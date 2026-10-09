@@ -16,6 +16,37 @@ import { BusinessType } from '../../types/queue';
 import { QrCodeCanvas } from '../Common/QrCodeCanvas';
 import { supabase } from '../../services/supabaseClient';
 
+// QueueTurn requires a business-domain email. This blocks consumer mailboxes and
+// common disposable providers in the UI; the database trigger enforces the same
+// rule for direct API calls.
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  'gmail.com','googlemail.com','yahoo.com','yahoo.co.in','ymail.com','rocketmail.com',
+  'outlook.com','hotmail.com','live.com','msn.com','icloud.com','me.com','mac.com',
+  'aol.com','proton.me','protonmail.com','pm.me','gmx.com','gmx.net','mail.com',
+  'yandex.com','yandex.ru','zoho.com','zohomail.com','fastmail.com','tutanota.com',
+  'tuta.com','hey.com','rediffmail.com','inbox.com','qq.com','163.com','126.com',
+  'yeah.net','hushmail.com','mail.ru','bk.ru','list.ru','rambler.ru'
+]);
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'mailinator.com','guerrillamail.com','guerrillamail.net','sharklasers.com',
+  'grr.la','yopmail.com','yopmail.fr','temp-mail.org','temp-mail.io',
+  '10minutemail.com','10minutemail.net','throwawaymail.com','dispostable.com',
+  'getnada.com','emailondeck.com','tempmail.com','tempail.com','fakeinbox.com',
+  'maildrop.cc','mintemail.com','mohmal.com','burnermail.io','inboxkitten.com',
+  'trashmail.com','trashmail.net','discard.email','spamgourmet.com','mailnesia.com',
+  'tempr.email','tmpmail.org','tmpmail.net','emailfake.com','crazymailing.com',
+  'harakirimail.com','mytemp.email','tempinbox.com','tmail.com','dropmail.me'
+]);
+function workEmailError(value: string): string | null {
+  const normalized = value.trim().toLowerCase();
+  const parts = normalized.split('@');
+  if (parts.length !== 2 || !parts[0] || !parts[1] || !parts[1].includes('.')) return 'Enter a valid work email address.';
+  const domain = parts[1].replace(/\\.$/, '');
+  if (PERSONAL_EMAIL_DOMAINS.has(domain)) return 'Please use your company or business email. Personal email providers such as Gmail are not allowed.';
+  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) return 'Temporary/disposable email addresses are not allowed. Please use your work email.';
+  return null;
+}
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -37,6 +68,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [ownerName, setOwnerName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  const [busy, setBusy] = useState(false);
 
   // Onboarding fields
   const [businessType, setBusinessType] = useState<BusinessType>('clinic');
@@ -55,18 +88,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessName || !ownerName || !email) return;
+    setAuthMessage('');
+    const emailError = workEmailError(email);
+    if (emailError) { setAuthMessage(emailError); return; }
+    if (!businessName.trim() || !ownerName.trim() || !email.trim()) return;
     setMode('onboarding');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthMessage('');
     const form = e.currentTarget as HTMLFormElement;
     const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement | null;
     const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement | null;
-    if (supabase && emailInput && passwordInput) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
-      if (error) { alert(error.message); return; }
+    if (!emailInput || !passwordInput) return;
+    const emailError = workEmailError(emailInput.value);
+    if (emailError) { setAuthMessage(emailError); return; }
+    if (!supabase) { setAuthMessage('Authentication service is unavailable. Please try again later.'); return; }
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: emailInput.value.trim(), password: passwordInput.value });
+      if (error) {
+        const message = error.message.toLowerCase();
+        setAuthMessage(message.includes('email not confirmed') || message.includes('not confirmed')
+          ? 'Your email is not verified yet. Check your inbox for the confirmation link, or use Resend confirmation email below.'
+          : 'Sign-in failed. Check your work email and password. If you just signed up, confirm your email first.');
+        return;
+      }
       if (data.user) {
         const { data: existingBusinesses, error: lookupError } = await supabase
           .from('businesses').select('id,name').eq('owner_id', data.user.id).limit(1);
@@ -111,9 +159,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
         localStorage.removeItem('queueturn_pending_onboarding');
       }
+      onSuccess();
+      onClose();
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : 'Unable to sign in. Please try again.');
+    } finally {
+      setBusy(false);
     }
-    onSuccess();
-    onClose();
+  };
+
+  const handleResendConfirmation = async () => {
+    const form = document.querySelector('form') as HTMLFormElement | null;
+    const emailInput = form?.querySelector('input[type="email"]') as HTMLInputElement | null;
+    const address = emailInput?.value.trim() || email.trim();
+    if (!address) { setAuthMessage('Enter your work email first.'); return; }
+    const emailError = workEmailError(address);
+    if (emailError) { setAuthMessage(emailError); return; }
+    if (!supabase) { setAuthMessage('Authentication service is unavailable.'); return; }
+    setBusy(true);
+    setAuthMessage('');
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: address, options: { emailRedirectTo: 'https://queueturn.com/' } });
+      if (error) throw error;
+      setAuthMessage('If this account needs confirmation, a new verification email has been requested. Check your inbox and spam folder.');
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : 'Could not resend the confirmation email. Please try again later.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleCompleteOnboarding = async (e: React.FormEvent) => {
@@ -121,7 +194,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       if (supabase) {
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name: ownerName, business_name: businessName } } });
+        const { data, error } = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password, options: { data: { name: ownerName, business_name: businessName }, emailRedirectTo: 'https://queueturn.com/' } });
         if (error) throw error;
         if (!data.user) throw new Error('Account creation failed.');
         if (!data.session) {
@@ -129,7 +202,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             businessName, ownerName, businessType, queueName, prefixFormat, startNumber,
             avgServiceMinutes, allowEstimatedWait
           }));
-          alert('Account created. Please confirm your email, then sign in to finish setting up your business and queue.');
+          setAuthMessage('Account created. Verification is required before sign-in. Check your inbox and spam folder for the QueueTurn confirmation email. After confirming, sign in with the same work email and password.');
           setMode('login');
           return;
         }
@@ -164,7 +237,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : 'Unable to create account. Please try again.');
+      setAuthMessage(error instanceof Error ? error.message : 'Unable to create account. Please try again.');
     }
   };
 
@@ -191,8 +264,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </span>
                 <h2 className="text-2xl font-black text-slate-900 mt-1">Get Started with Queue Turn</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Start serving walk-in customers digitally in under 2 minutes.
+                  Start serving walk-in customers digitally in under 2 minutes. Use a company email; personal and disposable addresses are not accepted.
                 </p>
+                {authMessage && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{authMessage}</div>}
               </div>
 
               <form onSubmit={handleSignup} className="space-y-3.5">
@@ -283,6 +357,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <p className="text-xs text-slate-500 mt-1">
                   Access your active queues, display screen, and analytics.
                 </p>
+                {authMessage && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{authMessage}</div>}
               </div>
 
               <form onSubmit={handleLogin} className="space-y-3.5">
@@ -312,9 +387,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 transition"
+                  disabled={busy}
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 transition"
                 >
-                  Sign In to Dashboard
+                  {busy ? 'Please wait…' : 'Sign In to Dashboard'}
+                </button>
+                <button type="button" disabled={busy} onClick={handleResendConfirmation} className="w-full py-2 text-indigo-700 hover:underline disabled:opacity-60 text-xs font-semibold">
+                  Resend confirmation email
                 </button>
 
                 <button
