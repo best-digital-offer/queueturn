@@ -87,12 +87,26 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const refreshCloudState = useCallback(async () => {
     if (!supabase) return false;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return false;
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const clearLocalOwnerState = () => {
+      const demoState = resetToDemoState();
+      setState(demoState);
+      setActiveQueueIdState('');
+    };
+
+    // Never leave a previous owner's cloud data visible after sign-out or an
+    // account switch. Keep the demo state as the unauthenticated fallback.
+    if (sessionError || !session?.user) {
+      clearLocalOwnerState();
+      return false;
+    }
 
     const { data: businesses, error: businessError } = await supabase
       .from('businesses').select('*').eq('owner_id', session.user.id);
-    if (businessError || !businesses?.length) return false;
+    if (businessError || !businesses?.length) {
+      clearLocalOwnerState();
+      return false;
+    }
 
     const businessIds = businesses.map((b:any) => b.id);
     const { data: cloudQueues } = await supabase.from('queues').select('*').in('business_id', businessIds);
@@ -151,9 +165,11 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!supabase) return;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     const start = async () => {
-      const loaded = await refreshCloudState();
-      if (!loaded) return;
+      await refreshCloudState();
+      // Subscribe even when the signed-in user has not created a business yet:
+      // onboarding inserts must trigger a fresh cloud-state load.
       channel = supabase.channel('queueturn-owner-sync')
+        .on('postgres_changes',{event:'*',schema:'public',table:'businesses'},() => { refreshCloudState(); })
         .on('postgres_changes',{event:'*',schema:'public',table:'queues'},() => { refreshCloudState(); })
         .on('postgres_changes',{event:'*',schema:'public',table:'queue_visitors'},() => { refreshCloudState(); })
         .subscribe();
