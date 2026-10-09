@@ -15,13 +15,13 @@ export const BillingTab: React.FC = () => {
 
   const plans: { id: PlanId; name: string; monthly: number; annual: number; description: string; features: { label: string; included: boolean }[]; cta: string; popular?: boolean }[] = [
     { id: 'free', name: 'Free', monthly: 0, annual: 0, description: 'Get started with the essentials for your business.', features: [
-      { label: 'Unlimited Queues', included: true }, { label: '50 Visitors / month', included: true },
+      { label: '7 Active Queues/month', included: true }, { label: '50 Visitors / month', included: true },
       { label: 'Standard QR Code Generator', included: true }, { label: 'Basic Dashboard Control', included: true },
       { label: 'Public Mobile Queue Page', included: true }, { label: 'TV Screen for 1 Queue', included: true },
       { label: 'Customer List', included: false }, { label: 'Analytics', included: false }, { label: 'CSV Export', included: false },
     ], cta: 'Free Plan' },
     { id: 'starter', name: 'Starter', monthly: 19, annual: 182, description: 'For small businesses that need customer records and reporting.', features: [
-      { label: '30 Active Queues', included: true }, { label: 'Visitor allowance', included: true },
+      { label: billingCycle === 'monthly' ? '30 Active Queues/month' : '75 Active Queues/month', included: true }, { label: billingCycle === 'monthly' ? 'Visitor allowance (monthly billing)' : 'Visitor allowance (annual billing)', included: true },
       { label: 'Standard QR Code Generator', included: true }, { label: 'Basic Dashboard Control', included: true },
       { label: 'Public Mobile Queue Page', included: true }, { label: 'TV Screen for 1 Queue', included: true },
       { label: 'Customer List', included: true }, { label: 'Queue Analytics', included: true }, { label: 'CSV Export', included: true },
@@ -29,7 +29,7 @@ export const BillingTab: React.FC = () => {
       { label: 'Custom Queue Link URL', included: true }, { label: 'Daily Queue Analytics', included: true },
     ], cta: 'Choose Starter' },
     { id: 'pro', name: 'Pro', monthly: 35, annual: 336, description: 'For busy teams managing multiple counters and high-volume queues.', features: [
-      { label: '100 Active Queues', included: true }, { label: '5,000 Visitors / month', included: true },
+      { label: billingCycle === 'monthly' ? '100 Active Queues/month' : '150 Active Queues/month', included: true }, { label: '5,000 Visitors / month', included: true },
       { label: 'Customer List & CSV Export', included: true }, { label: 'Advanced Analytics', included: true },
       { label: 'Multiple Service Counters', included: true }, { label: 'Standard QR Code Generator', included: true },
       { label: 'Basic Dashboard Control', included: true }, { label: 'Public Mobile Queue Page', included: true },
