@@ -10,12 +10,12 @@ import { LandingPage } from './components/LandingPage';
 import { DashboardLayout } from './components/Dashboard/DashboardLayout';
 import { CustomerView } from './components/CustomerQueue/CustomerView';
 import { DisplayView } from './components/PublicDisplay/DisplayView';
-import { AdminPanel } from './components/Admin/AdminPanel';
 import { IndustryPage } from './components/SeoPages/IndustryPage';
 import { AuthModal } from './components/Auth/AuthModal';
 
 function AppContent() {
-  const { currentBusiness, activeQueue } = useQueue();
+  const { currentBusiness, activeQueue, state } = useQueue();
+  const isSignedIn = Boolean(state.currentUser);
 
   // Read URL query params on initial load
   const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo'>(() => {
@@ -106,15 +106,25 @@ function AppContent() {
     }
   };
 
+  // After authentication, send users straight to their dashboard rather than the marketing home.
+  useEffect(() => {
+    if (isSignedIn && currentView === 'landing') {
+      setCurrentView('dashboard');
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'dashboard');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [isSignedIn, currentView]);
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
-      {/* Top Demo Simulation Switcher */}
-      <DemoControlBar
+      {/* Public marketing home is only shown before sign-in. */}
+      {!isSignedIn && <DemoControlBar
         currentView={currentView}
         onNavigate={handleNavigate}
         activeQueueSlug={activeQueue?.slug || activeQueueSlug}
         businessSlug={currentBusiness?.slug || activeBusinessSlug}
-      />
+      />}
 
       {/* Main View Router */}
       <div className="flex-1 flex flex-col">
@@ -136,7 +146,7 @@ function AppContent() {
 
         {currentView === 'dashboard' && (
           <DashboardLayout
-            onNavigateHome={() => handleNavigate('landing')}
+            onNavigateHome={() => handleNavigate(isSignedIn ? 'dashboard' : 'landing')}
             onOpenCustomerView={(slug) => handleNavigate('customer', slug || activeQueueSlug)}
             onOpenDisplayView={(slug) => handleNavigate('display', slug || activeQueueSlug)}
           />
@@ -155,10 +165,6 @@ function AppContent() {
             queueSlug={activeQueueSlug}
             onExit={() => handleNavigate('dashboard')}
           />
-        )}
-
-        {currentView === 'admin' && (
-          <AdminPanel onBackToDashboard={() => handleNavigate('dashboard')} />
         )}
 
         {currentView === 'seo' && (
