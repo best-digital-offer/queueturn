@@ -33,7 +33,7 @@ interface QueueContextType {
   
   // Queue Control
   callNext: (queueId: string, counterId?: string) => Promise<QueueEntry | null>;
-  callSpecific: (entryId: string, counterId?: string) => void;
+  callSpecific: (entryId: string, counterId?: string) => Promise<void>;
   skipEntry: (entryId: string) => void;
   removeEntry: (entryId: string) => void;
   completeEntry: (entryId: string) => void;
@@ -374,7 +374,13 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return nextCustomerEntry;
   }, [updateStateAndPersist]);
 
-  const callSpecific = useCallback((entryId: string, counterId?: string) => {
+  const callSpecific = useCallback(async (entryId: string, counterId?: string) => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(entryId)) {
+      const { error } = await supabase.rpc('call_specific_visitor', { p_visitor_id: entryId });
+      if (error) throw error;
+      await refreshCloudState();
+      return;
+    }
     let calledEntry: QueueEntry | null = null;
     updateStateAndPersist((prev) => {
       const entry = prev.entries.find((e) => e.id === entryId);
@@ -427,7 +433,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         data: { entryId: target.id, displayNumber: target.displayNumber, counterName: target.counterName },
       });
     }
-  }, [updateStateAndPersist]);
+  }, [updateStateAndPersist, refreshCloudState]);
 
   const skipEntry = useCallback(async (entryId: string) => {
     if (supabase && /^[0-9a-f-]{36}$/i.test(entryId)) {
