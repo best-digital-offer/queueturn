@@ -35,10 +35,9 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
   const [appointmentName, setAppointmentName] = useState('');
   const [appointmentPhone, setAppointmentPhone] = useState('');
   const [appointmentError, setAppointmentError] = useState('');
+  const [isAddingAppointment, setIsAddingAppointment] = useState(false);
 
   if (!currentBusiness) return null;
-
-  const [isAddingAppointment, setIsAddingAppointment] = useState(false);
 
   const handleAddAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,11 +110,11 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                    q.scheduledFor && q.scheduledFor > new Date().toLocaleDateString('en-CA')
+                    q.scheduledFor && q.scheduledFor > (() => { const now = new Date(); return String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); })()
                       ? 'bg-violet-50 text-violet-700 border border-violet-200'
                       : q.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}>
-                    {q.scheduledFor && q.scheduledFor > new Date().toLocaleDateString('en-CA') ? '◷ Scheduled' : q.status === 'active' ? '● Active' : '❚❚ Paused'}
+                    {q.scheduledFor && q.scheduledFor > (() => { const now = new Date(); return String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); })() ? '◷ Scheduled' : q.status === 'active' ? '● Active' : '❚❚ Paused'}
                   </span>
                   {isSelected && (
                     <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
@@ -125,7 +124,7 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
                 </div>
 
                 <h3 className="text-lg font-bold text-slate-900">{q.name}</h3>
-                {q.scheduledFor && q.scheduledFor > new Date().toLocaleDateString('en-CA') && <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700"><CalendarDays className="w-3.5 h-3.5" /> Scheduled for {new Date(`${q.scheduledFor}T12:00:00`).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}</p>}
+                {q.scheduledFor && q.scheduledFor > (() => { const now = new Date(); return String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); })() && <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700"><CalendarDays className="w-3.5 h-3.5" /> Scheduled for {new Date(`${q.scheduledFor}T12:00:00`).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}</p>}
                 <p className="text-xs text-slate-400 mt-0.5">Prefix: <span className="font-semibold text-slate-700">{q.prefix || 'None'}</span> • Next: #{q.nextNumber}</p>
 
                 <div className="mt-5 grid grid-cols-2 gap-3 py-3 px-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-center">
@@ -148,7 +147,7 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
                 <button
                   onClick={() => { setAppointmentQueueId(q.id); setAppointmentError(''); }}
                   className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
-                  title={q.scheduledFor && q.scheduledFor > new Date().toLocaleDateString('en-CA') ? 'Add future appointment' : 'Add customer'}
+                  title={q.scheduledFor && q.scheduledFor > (() => { const now = new Date(); return String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); })() ? 'Add future appointment' : 'Add customer'}
                   aria-label="Add customer or appointment"
                 >
                   <UserPlus className="w-4 h-4" />
@@ -299,7 +298,7 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
                 </label>
                 <input
                   type="date"
-                  min={new Date().toLocaleDateString('en-CA')}
+                  min={(() => { const now = new Date(); return String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); })()}
                   value={scheduledFor}
                   onChange={(e) => setScheduledFor(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500"
