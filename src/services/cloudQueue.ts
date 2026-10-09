@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 export type CloudQueue = {
   id: string; name: string; slug: string; prefix: string;
   current_number: number; next_number: number;
-  estimated_minutes_per_person: number; is_active: boolean; is_paused: boolean;
+  estimated_minutes_per_person: number; is_active: boolean; is_paused: boolean; scheduled_for?: string | null;
   business_id: string;
 };
 export type CloudBusiness = { id:string; name:string; owner_id:string };
