@@ -43,7 +43,7 @@ export const DemoControlBar: React.FC<DemoControlBarProps> = ({
             }`}
           >
             <Home className="w-3.5 h-3.5" />
-            Landing
+            Home
           </button>
 
           <button
@@ -59,7 +59,7 @@ export const DemoControlBar: React.FC<DemoControlBarProps> = ({
           </button>
 
           <button
-            onClick={() => onNavigate('customer')}
+            onClick={() => onNavigate('customer', `${businessSlug}/${activeQueueSlug}`)}
             className={`px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
               currentView === 'customer'
                 ? 'bg-indigo-600 text-white shadow-sm'
