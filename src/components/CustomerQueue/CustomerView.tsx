@@ -82,7 +82,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const business = cloudBusiness || state.businesses.find((b) => b.slug === businessSlug) || state.businesses[0];
   const queue = cloudQueue || state.queues.find((q) => q.businessId === business?.id && (q.slug === queueSlug || q.id === queueSlug)) || state.queues[0];
 
-  const activeCustomerEntry = cloudVisitor ? { id:cloudVisitor.visitor_id, displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.queue_number}`, status:cloudVisitor.status === 'called' ? 'serving' : cloudVisitor.status, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
+  const activeCustomerEntry = cloudVisitor && (cloudVisitor.status === 'waiting' || cloudVisitor.status === 'called') ? { id:cloudVisitor.visitor_id, displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.queue_number}`, status:cloudVisitor.status === 'called' ? 'serving' : cloudVisitor.status, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
   const positionInfo = cloudVisitor ? { peopleAhead:Number(cloudVisitor.people_ahead||0), estimatedWaitMinutes:Number(cloudVisitor.estimated_wait_minutes||0) } : ((queue && activeCustomerEntry) ? calculatePosition(queue.id, activeCustomerEntry.id) : { peopleAhead: 0, estimatedWaitMinutes: 0 });
 
   const currentServingEntry = cloudVisitor ? (cloudVisitor.current_number ? {displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.current_number}`} : null) : (queue ? state.entries.find((e) => e.queueId === queue.id && e.status === 'serving') : null);
