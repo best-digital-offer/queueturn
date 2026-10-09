@@ -26,6 +26,7 @@ import { AnalyticsTab } from './AnalyticsTab';
 import { SettingsTab } from './SettingsTab';
 import { StaffTab } from './StaffTab';
 import { BillingTab } from './BillingTab';
+import { supabase } from '../../services/supabaseClient';
 
 interface DashboardLayoutProps {
   onNavigateHome: () => void;
@@ -70,9 +71,24 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     setMobileMenuOpen(false);
   };
 
-  const handleSignOut = () => {
-    setCurrentUser(null);
-    onNavigateHome();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      if (supabase) {
+        const { error } = await supabase.auth.signOut({ scope: 'local' });
+        if (error) throw error;
+      }
+      setCurrentUser(null);
+      onNavigateHome();
+    } catch (error) {
+      console.error('Could not sign out:', error);
+      window.alert('Could not sign out. Please check your connection and try again.');
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   return (
@@ -184,10 +200,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+              disabled={isSigningOut}
+              className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition disabled:opacity-60 disabled:cursor-wait"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Exit to Website</span>
+              <span>{isSigningOut ? 'Signing out…' : 'Sign out'}</span>
             </button>
           </div>
         </div>
