@@ -80,10 +80,16 @@ function AppContent() {
     params?: string
   ) => {
     setCurrentView(view);
-    if (view === 'customer' || view === 'display') {
-      if (params) {
+    if (view === 'customer' && params) {
+      const parts = params.split('/');
+      if (parts.length > 1) {
+        setActiveBusinessSlug(parts[0]);
+        setActiveQueueSlug(parts[1]);
+      } else {
         setActiveQueueSlug(params);
       }
+    } else if (view === 'display' && params) {
+      setActiveQueueSlug(params);
     }
     // Update URL shallowly
     if (typeof window !== 'undefined') {
