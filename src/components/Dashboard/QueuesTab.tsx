@@ -90,11 +90,11 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                    q.status === 'active' 
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    q.scheduledFor && q.scheduledFor > new Date().toLocaleDateString('en-CA')
+                      ? 'bg-violet-50 text-violet-700 border border-violet-200'
+                      : q.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}>
-                    {q.status === 'active' ? '● Active' : '❚❚ Paused'}
+                    {q.scheduledFor && q.scheduledFor > new Date().toLocaleDateString('en-CA') ? '◷ Scheduled' : q.status === 'active' ? '● Active' : '❚❚ Paused'}
                   </span>
                   {isSelected && (
                     <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full">
