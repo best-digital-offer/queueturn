@@ -49,6 +49,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const [confettiFired, setConfettiFired] = useState(false);
   const [cloudQueue, setCloudQueue] = useState<any>(null);
   const [cloudBusiness, setCloudBusiness] = useState<any>(null);
+  const [cloudLookupComplete, setCloudLookupComplete] = useState(!supabase);
   const [cloudVisitor, setCloudVisitor] = useState<any>(null);
   const [cloudStats, setCloudStats] = useState<any>(null);
   const [cloudStatsLoaded, setCloudStatsLoaded] = useState(false);
@@ -57,10 +58,28 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   // Cloud mode: QR/customer links use Supabase when configured.
   useEffect(() => {
     let cancelled=false;
-    if (!supabase) return;
-    findPublicQueue(queueSlug, businessSlug).then(found => {
-      if (!cancelled && found) { setCloudQueue(found.queue); setCloudBusiness(found.business); }
-    });
+    if (!supabase) {
+      setCloudLookupComplete(true);
+      return;
+    }
+    // Do not briefly render demo/local queue data while the QR's real cloud queue is loading.
+    setCloudLookupComplete(false);
+    setCloudQueue(null);
+    setCloudBusiness(null);
+    findPublicQueue(queueSlug, businessSlug)
+      .then(found => {
+        if (cancelled) return;
+        if (found) {
+          setCloudQueue(found.queue);
+          setCloudBusiness(found.business);
+        }
+      })
+      .catch(error => {
+        console.error('Could not load public queue:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setCloudLookupComplete(true);
+      });
     return () => { cancelled=true; };
   }, [queueSlug,businessSlug]);
 
@@ -87,9 +106,14 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     return ()=>{ alive=false; window.clearInterval(poll); unsubscribe(); };
   }, [cloudQueue?.id]);
 
-  // Find business and queue
-  const business = cloudBusiness || state.businesses.find((b) => b.slug === businessSlug) || state.businesses[0];
-  const queue = cloudQueue || state.queues.find((q) => q.businessId === business?.id && (q.slug === queueSlug || q.id === queueSlug)) || state.queues[0];
+  // In production/cloud mode, only show the queue resolved from the QR URL.
+  // Demo/local state is used only when Supabase is not configured.
+  const business = supabase
+    ? cloudBusiness
+    : (state.businesses.find((b) => b.slug === businessSlug) || state.businesses[0]);
+  const queue = supabase
+    ? cloudQueue
+    : (state.queues.find((q) => q.businessId === business?.id && (q.slug === queueSlug || q.id === queueSlug)) || state.queues[0]);
 
   const activeCustomerEntry = cloudVisitor && (cloudVisitor.status === 'waiting' || cloudVisitor.status === 'called') ? { id:cloudVisitor.visitor_id, displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.queue_number}`, status:cloudVisitor.status === 'called' ? 'serving' : cloudVisitor.status, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
   const positionInfo = cloudVisitor ? { peopleAhead:Number(cloudVisitor.people_ahead||0), estimatedWaitMinutes:Number(cloudVisitor.estimated_wait_minutes||0) } : ((queue && activeCustomerEntry) ? calculatePosition(queue.id, activeCustomerEntry.id) : { peopleAhead: 0, estimatedWaitMinutes: 0 });
@@ -194,6 +218,18 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       window.setTimeout(() => setIsRefreshing(false), 400);
     }
   };
+
+  if (supabase && !cloudLookupComplete) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-sm border border-slate-200 max-w-sm w-full">
+          <RefreshCw className="w-8 h-8 text-indigo-600 mx-auto mb-3 animate-spin" />
+          <h2 className="text-lg font-bold text-slate-900">Loading live queue</h2>
+          <p className="text-slate-500 text-sm mt-1">Fetching the latest queue status…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!business || !queue) {
     return (
