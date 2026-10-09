@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, X, CreditCard, Sparkles } from 'lucide-react';
 
 type PlanId = 'free' | 'starter' | 'pro' | 'unlimited';
+type BillingCycle = 'monthly' | 'annual';
 
 export const BillingTab: React.FC = () => {
   const [currentPlan, setCurrentPlan] = useState<PlanId>(() => {
@@ -10,6 +11,7 @@ export const BillingTab: React.FC = () => {
     return saved === 'starter' || saved === 'pro' || saved === 'unlimited' || saved === 'free' ? saved : 'free';
   });
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
 
   const plans: { id: PlanId; name: string; monthly: number; annual: number; description: string; features: { label: string; included: boolean }[]; cta: string; popular?: boolean }[] = [
     { id: 'free', name: 'Free', monthly: 0, annual: 0, description: 'Get started with the essentials for your business.', features: [
@@ -64,6 +66,14 @@ export const BillingTab: React.FC = () => {
 
       {successToast && <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold">{successToast}</div>}
 
+      <div className="flex flex-col items-center gap-2 pt-2">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Choose your billing cycle</p>
+        <div role="tablist" aria-label="Billing cycle" className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-sm">
+          <button type="button" role="tab" aria-selected={billingCycle === "monthly"} onClick={() => setBillingCycle("monthly")} className={billingCycle === "monthly" ? "rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-indigo-700 shadow-sm" : "rounded-lg px-5 py-2.5 text-sm font-bold text-slate-500"}>Monthly</button>
+          <button type="button" role="tab" aria-selected={billingCycle === "annual"} onClick={() => setBillingCycle("annual")} className={billingCycle === "annual" ? "rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-indigo-700 shadow-sm" : "rounded-lg px-5 py-2.5 text-sm font-bold text-slate-500"}>Annual <span className="ml-1 text-[10px] font-extrabold text-emerald-600">SAVE ~20%</span></button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 pt-3">
         {plans.map((plan) => {
           const isCurrent = currentPlan === plan.id;
@@ -74,8 +84,10 @@ export const BillingTab: React.FC = () => {
                 <div className="flex items-center justify-between gap-2 mb-2"><h3 className="font-extrabold text-lg text-slate-900">{plan.name}</h3>{isCurrent && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200 whitespace-nowrap">Current Plan</span>}</div>
                 <p className="text-xs leading-relaxed text-slate-500 min-h-[42px]">{plan.description}</p>
                 <div className="my-5 pb-5 border-b border-slate-100">
-                  <div className="flex items-baseline gap-1"><span className="text-4xl font-extrabold tracking-tight text-slate-900">${plan.monthly}</span><span className="text-xs text-slate-400 font-medium">/month</span></div>
-                  {plan.monthly > 0 && <p className="mt-1 text-[11px] text-slate-500">or ${plan.annual} billed yearly</p>}
+                  <p className="mb-1 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">{billingCycle === "monthly" ? "Monthly price" : "Annual price"}</p>
+                  <div className="flex items-baseline gap-1"><span className="text-4xl font-extrabold tracking-tight text-slate-900">${billingCycle === "monthly" ? plan.monthly : plan.annual}</span><span className="text-xs text-slate-400 font-medium">{billingCycle === "monthly" ? "/month" : "/year"}</span></div>
+                  {plan.monthly > 0 && billingCycle === "annual" && <p className="mt-1 text-[11px] font-semibold text-emerald-700">Save ${plan.monthly * 12 - plan.annual} per year vs monthly billing</p>}
+                  {plan.monthly > 0 && billingCycle === "monthly" && <p className="mt-1 text-[11px] text-slate-500">Billed monthly</p>}
                 </div>
                 <ul className="space-y-2.5 text-xs text-slate-600">
                   {plan.features.map((feature) => <li key={feature.label} className={`flex items-start gap-2 ${feature.included ? '' : 'text-slate-400'}`}>{feature.included ? <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <X className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />}<span className={feature.included ? '' : 'line-through'}>{feature.label}</span></li>)}
