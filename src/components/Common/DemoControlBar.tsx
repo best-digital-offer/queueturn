@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Smartphone, Tv, Sparkles, RotateCcw, ExternalLink, ShieldCheck, Home } from 'lucide-react';
+import { LayoutDashboard, Smartphone, Tv, Sparkles, RotateCcw, ExternalLink, Home } from 'lucide-react';
 import { useQueue } from '../../context/QueueContext';
 
 interface DemoControlBarProps {
@@ -82,17 +82,6 @@ export const DemoControlBar: React.FC<DemoControlBarProps> = ({
             TV Display Screen
           </button>
 
-          <button
-            onClick={() => onNavigate('admin')}
-            className={`px-2.5 py-1 rounded-md font-medium transition-colors hidden lg:flex items-center gap-1.5 ${
-              currentView === 'admin'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            SaaS Admin
-          </button>
         </nav>
 
         <div className="flex items-center gap-2">
