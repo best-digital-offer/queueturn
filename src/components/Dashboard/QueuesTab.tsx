@@ -5,11 +5,13 @@ import { useQueue } from '../../context/QueueContext';
 interface QueuesTabProps {
   onOpenCustomerView: (queueSlug: string) => void;
   onOpenDisplayView: (queueSlug: string) => void;
+  onManageQueue: (queueId: string) => void;
 }
 
 export const QueuesTab: React.FC<QueuesTabProps> = ({ 
   onOpenCustomerView, 
-  onOpenDisplayView 
+  onOpenDisplayView,
+  onManageQueue
 }) => {
   const { 
     currentBusiness, 
@@ -153,15 +155,14 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
                   <UserPlus className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => setActiveQueueId(q.id)}
-                  disabled={isSelected}
+                  onClick={() => onManageQueue(q.id)}
                   className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold transition text-center ${
                     isSelected 
                       ? 'bg-slate-100 text-slate-400 cursor-default' 
                       : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
                   }`}
                 >
-                  {isSelected ? 'Active Now' : 'Manage Queue'}
+                  Manage Queue
                 </button>
 
                 <button
@@ -233,7 +234,7 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
               {appointmentError && <p role="alert" className="text-xs text-rose-600">{appointmentError}</p>}
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => { setAppointmentQueueId(null); setAppointmentError(''); }} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
-                <button type="submit" disabled={isAddingAppointment} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-wait text-white rounded-xl text-xs font-bold">{isAddingAppointment ? "Adding…" : "Add Customer"}</button>
+                <button type="button" disabled={isAddingAppointment} onClick={(e) => { e.preventDefault(); void handleAddAppointment(e as unknown as React.FormEvent); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 disabled:cursor-wait text-white rounded-xl text-xs font-bold">{isAddingAppointment ? "Adding…" : "Add Customer"}</button>
               </div>
             </form>
           </div>
