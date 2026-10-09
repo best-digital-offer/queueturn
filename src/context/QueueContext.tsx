@@ -884,18 +884,42 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...prev,
       queues: prev.queues.map((q) => (q.id === queueId ? { ...q, ...updates } : q)),
     }));
-    realtimeService.broadcast({
-      type: 'QUEUE_UPDATED',
-      queueId,
-    });
-  }, [updateStateAndPersist]);
+    if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
+      const cloudUpdates: Record<string, unknown> = {};
+      if (updates.name !== undefined) cloudUpdates.name = updates.name;
+      if (updates.slug !== undefined) cloudUpdates.slug = updates.slug;
+      if (updates.prefix !== undefined) cloudUpdates.prefix = updates.prefix;
+      if (updates.nextNumber !== undefined) cloudUpdates.next_number = updates.nextNumber;
+      if (updates.currentNumber !== undefined) cloudUpdates.current_number = updates.currentNumber ?? 0;
+      if (updates.averageServiceMinutes !== undefined) cloudUpdates.estimated_minutes_per_person = updates.averageServiceMinutes;
+      if (updates.status !== undefined) {
+        cloudUpdates.is_paused = updates.status === 'paused';
+        cloudUpdates.is_active = updates.status !== 'closed';
+      }
+      if (Object.keys(cloudUpdates).length) {
+        void (async () => {
+          const { error } = await supabase.from('queues').update(cloudUpdates).eq('id', queueId);
+          if (error) console.error('Could not save queue settings:', error);
+          else await refreshCloudState();
+        })();
+      }
+    }
+    realtimeService.broadcast({ type: 'QUEUE_UPDATED', queueId });
+  }, [updateStateAndPersist, refreshCloudState]);
 
   const updateBusinessSettings = useCallback((businessId: string, updates: Partial<Business>) => {
     updateStateAndPersist((prev) => ({
       ...prev,
       businesses: prev.businesses.map((b) => (b.id === businessId ? { ...b, ...updates } : b)),
     }));
-  }, [updateStateAndPersist]);
+    if (supabase && /^[0-9a-f-]{36}$/i.test(businessId) && updates.name !== undefined) {
+      void (async () => {
+        const { error } = await supabase.from('businesses').update({ name: updates.name }).eq('id', businessId);
+        if (error) console.error('Could not save business settings:', error);
+        else await refreshCloudState();
+      })();
+    }
+  }, [updateStateAndPersist, refreshCloudState]);
 
   const addCounter = useCallback((queueId: string, name: string) => {
     const newCounter: Counter = {
