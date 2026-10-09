@@ -211,6 +211,22 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [refreshCloudState]);
 
+  // Poll cloud state as a reliable fallback when realtime events are delayed or blocked.
+  useEffect(() => {
+    if (!supabase) return;
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshCloudState();
+    }, 3000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refreshCloudState(); };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshCloudState]);
+
   // Subscribe to real-time events across tabs & windows
   useEffect(() => {
     const unsubscribe = realtimeService.subscribe((msg: RealtimeMessage) => {
