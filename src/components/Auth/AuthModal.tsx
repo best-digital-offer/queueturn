@@ -81,7 +81,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             const { data: biz, error: bizError } = await supabase.from('businesses')
               .insert({ owner_id:data.user.id, name:draft.businessName }).select('id,name').single();
             if (bizError) throw bizError;
-            const queueSlugValue = draft.queueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'general-service';
+            const businessSlugValue = draft.businessName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'business';
+            const queueNameSlug = draft.queueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'general-service';
+            const queueSlugValue = `${businessSlugValue}-${queueNameSlug}`;
             const { data: q, error: qError } = await supabase.from('queues').insert({
               business_id:biz.id, name:draft.queueName, slug:queueSlugValue, prefix:draft.prefixFormat,
               next_number:draft.startNumber, estimated_minutes_per_person:draft.avgServiceMinutes
@@ -138,7 +140,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }).select('id,name').single();
         if (bizError) throw bizError;
 
-        const queueSlugValue = queueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'general-service';
+        const queueNameSlug = queueName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'general-service';
+        const queueSlugValue = `${bizSlug}-${queueNameSlug}`;
         const { data: q, error: qError } = await supabase.from('queues').insert({
           business_id: biz.id, name: queueName, slug: queueSlugValue,
           prefix: prefixFormat, next_number: startNumber,
