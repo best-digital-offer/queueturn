@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, X, CreditCard, Sparkles } from 'lucide-react';
+import { supabase } from '../../services/supabaseClient';
 
 type PlanId = 'free' | 'starter' | 'pro' | 'unlimited';
 type BillingCycle = 'monthly' | 'annual';
@@ -46,13 +47,39 @@ export const BillingTab: React.FC = () => {
     ], cta: 'Choose Unlimited' },
   ];
 
-  const handleSelectPlan = (planId: PlanId) => {
-    if (planId === currentPlan) return;
-    setCurrentPlan(planId);
-    window.localStorage.setItem('queueturn-plan', planId);
-    window.dispatchEvent(new CustomEvent('queueturn-plan-changed', { detail: planId }));
-    setSuccessToast('Plan preview changed to ' + planId.toUpperCase() + '. No payment was taken; checkout and plan enforcement are not connected yet.');
-    window.setTimeout(() => setSuccessToast(null), 5000);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  const handleSelectPlan = async (planId: PlanId) => {
+    if (planId === currentPlan || isCheckingOut) return;
+    if (planId === 'free') {
+      setSuccessToast('Free plan selected for preview. Paid subscriptions must be cancelled through the billing provider before downgrading.');
+      return;
+    }
+    if (!supabase) {
+      setSuccessToast('Billing is not configured. Please try again later.');
+      return;
+    }
+    setIsCheckingOut(true);
+    setSuccessToast(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setSuccessToast('Please sign in again before starting checkout.');
+        return;
+      }
+      const response = await fetch('/api/paddle/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+        body: JSON.stringify({ plan: planId, billingCycle }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.checkoutUrl) throw new Error(result.error || 'Could not start checkout.');
+      window.location.assign(result.checkoutUrl);
+    } catch (error) {
+      setSuccessToast(error instanceof Error ? error.message : 'Could not start checkout.');
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   return (
@@ -93,13 +120,13 @@ export const BillingTab: React.FC = () => {
                   {plan.features.map((feature) => <li key={feature.label} className={`flex items-start gap-2 ${feature.included ? '' : 'text-slate-400'}`}>{feature.included ? <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <X className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />}<span className={feature.included ? '' : 'line-through'}>{feature.label}</span></li>)}
                 </ul>
               </div>
-              <div className="p-5 pt-0 mt-auto"><button onClick={() => handleSelectPlan(plan.id)} disabled={isCurrent} className={`w-full py-3 px-4 rounded-xl text-xs font-extrabold transition text-center disabled:cursor-default ${isCurrent ? 'bg-slate-100 text-slate-400' : plan.popular ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>{isCurrent ? 'Current Plan' : plan.cta}</button></div>
+              <div className="p-5 pt-0 mt-auto"><button onClick={() => handleSelectPlan(plan.id)} disabled={isCurrent || isCheckingOut} className={`w-full py-3 px-4 rounded-xl text-xs font-extrabold transition text-center disabled:cursor-default ${isCurrent ? 'bg-slate-100 text-slate-400' : plan.popular ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>{isCurrent ? 'Current Plan' : isCheckingOut ? 'Opening checkout…' : plan.cta}</button></div>
             </div>
           );
         })}
       </div>
 
-      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2"><CreditCard className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" /><span><strong>Billing status:</strong> Plan selection is a preview only. Payments, subscriptions, and feature limits are not connected or enforced yet.</span></div>
+      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2"><CreditCard className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" /><span><strong>Billing status:</strong> Paid plan checkout uses Paddle when Sandbox credentials and price IDs are configured. Your paid plan activates only after a verified Paddle webhook; plan limits still need server-side enforcement.</span></div>
     </div>
   );
 };
