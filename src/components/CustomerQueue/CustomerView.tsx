@@ -50,6 +50,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const [cloudQueue, setCloudQueue] = useState<any>(null);
   const [cloudBusiness, setCloudBusiness] = useState<any>(null);
   const [cloudVisitor, setCloudVisitor] = useState<any>(null);
+  const [joinError, setJoinError] = useState('');
 
   // Cloud mode: QR/customer links use Supabase when configured.
   useEffect(() => {
@@ -107,7 +108,11 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     e.preventDefault();
     if (!queue) return;
     setIsJoining(true);
+    setJoinError('');
     try {
+      if (queue.status === 'paused' || queue.status === 'closed') {
+        throw new Error(queue.status === 'paused' ? 'This queue is paused right now. Please check with staff before joining.' : 'This queue is closed and is not accepting new tickets.');
+      }
       if (cloudQueue) {
         const result=await joinCloudQueue(cloudQueue.id,customerName,customerPhone);
         localStorage.setItem('queueturn_cloud_visitor_id_'+cloudQueue.id,result.visitor_id);
@@ -117,6 +122,12 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       soundService.playChime();
     } catch (err) {
       console.error(err);
+      const message = err instanceof Error ? err.message : '';
+      setJoinError(/paused/i.test(message)
+        ? 'This queue is paused right now. Please check with staff before joining.'
+        : /closed|not accepting/i.test(message)
+          ? 'This queue is closed and is not accepting new tickets.'
+          : 'We could not create your ticket. Please try again in a moment.');
     } finally {
       setIsJoining(false);
     }
@@ -443,9 +454,9 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               Avg wait: ~{queue.averageServiceMinutes} min/person
             </span>
-            <span className="inline-flex items-center text-emerald-600 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-              Open Now
+            <span className={`inline-flex items-center font-medium ${queue.status === 'active' ? 'text-emerald-600' : queue.status === 'paused' ? 'text-amber-600' : 'text-slate-500'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${queue.status === 'active' ? 'bg-emerald-500 animate-pulse' : queue.status === 'paused' ? 'bg-amber-500' : 'bg-slate-400'}`} />
+              {queue.status === 'paused' ? 'Temporarily Paused' : queue.status === 'closed' ? 'Closed' : 'Open Now'}
             </span>
           </div>
         </div>
@@ -490,13 +501,15 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
 
             <button
               type="submit"
-              disabled={isJoining || queue.status === 'closed'}
+              disabled={isJoining || queue.status === 'closed' || queue.status === 'paused'}
               className="w-full py-4 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-extrabold text-base shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition active:scale-[0.98] disabled:opacity-60 flex items-center justify-center space-x-2"
             >
               {isJoining ? (
                 <span>Generating Ticket...</span>
               ) : queue.status === 'closed' ? (
                 <span>Queue Closed</span>
+              ) : queue.status === 'paused' ? (
+                <span>Queue Temporarily Paused</span>
               ) : (
                 <>
                   <span>JOIN QUEUE</span>
@@ -505,6 +518,11 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
               )}
             </button>
           </form>
+          {joinError && (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {joinError}
+            </div>
+          )}
 
           <div className="pt-2 text-center">
             <span className="inline-flex items-center text-[11px] text-slate-400 gap-1">
