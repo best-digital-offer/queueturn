@@ -98,7 +98,7 @@ export const QueuesTab: React.FC<QueuesTabProps> = ({
           const isSelected = activeQueue?.id === q.id;
           const todayKey = (() => { const now = new Date(); return String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0'); })();
           const isFutureScheduled = Boolean(q.scheduledFor && q.scheduledFor > todayKey);
-          const canStartScheduledQueue = Boolean(q.scheduledFor && q.scheduledFor <= todayKey && q.status !== 'active');
+          const canStartScheduledQueue = Boolean(q.scheduledFor && q.scheduledFor <= todayKey);
           const waitingCount = state.entries.filter((e) => e.queueId === q.id && e.status === 'waiting').length;
           const servingEntry = state.entries.find((e) => e.queueId === q.id && e.status === 'serving');
 
