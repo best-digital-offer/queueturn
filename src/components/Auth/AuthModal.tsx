@@ -168,9 +168,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const publicUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/?view=customer&q=${createdBizSlug}/${createdQueueSlug}`
-    : `https://queueturn.com/q/${createdBizSlug}/${createdQueueSlug}`;
+  // Always print customer QR codes with the canonical custom domain, even if staff opened a Vercel preview URL.
+  const publicUrl = `https://queueturn.com/?view=customer&q=${createdBizSlug}/${createdQueueSlug}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
