@@ -426,7 +426,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (nextCustomerEntry) {
       const entry = nextCustomerEntry as QueueEntry;
-      soundService.announceTurn(entry.displayNumber, entry.counterName);
+      soundService.announceTurn(entry.displayNumber, entry.counterName, state.queues.find(q=>q.id===queueId)?.announcementTemplate, state.businesses.find(b=>b.id===state.queues.find(q=>q.id===queueId)?.businessId)?.name);
       realtimeService.broadcast({
         type: 'NEXT_CUSTOMER_CALLED',
         queueId,
@@ -494,7 +494,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (calledEntry) {
       const target = calledEntry as QueueEntry;
-      soundService.announceTurn(target.displayNumber, target.counterName);
+      soundService.announceTurn(target.displayNumber, target.counterName, state.queues.find(q=>q.id===target.queueId)?.announcementTemplate, state.businesses.find(b=>b.id===state.queues.find(q=>q.id===target.queueId)?.businessId)?.name);
       realtimeService.broadcast({
         type: 'NEXT_CUSTOMER_CALLED',
         queueId: target.queueId,
