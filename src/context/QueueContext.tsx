@@ -830,7 +830,15 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [updateStateAndPersist]);
 
   const createQueue = useCallback((data: { businessId: string; name: string; prefix: string; startNumber: number; averageServiceMinutes: number; allowEstimatedWait: boolean }): Queue => {
-    const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'queue-' + Date.now();
+    const queueNameSlug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'general-service';
+    const isCloudBusiness = Boolean(supabase && /^[0-9a-f-]{36}$/i.test(data.businessId));
+    const businessSlug = state.businesses.find((business) => business.id === data.businessId)?.slug
+      || state.businesses.find((business) => business.id === data.businessId)?.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      || 'business';
+    const baseSlug = isCloudBusiness ? `${businessSlug}-${queueNameSlug}` : queueNameSlug;
+    const slug = state.queues.some((queue) => queue.slug === baseSlug && queue.businessId === data.businessId)
+      ? `${baseSlug}-${Date.now().toString(36)}`
+      : baseSlug;
     const newQueue: Queue = {
       id: supabase ? crypto.randomUUID() : 'queue_' + Date.now(),
       businessId: data.businessId,
@@ -877,7 +885,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })();
     }
     return newQueue;
-  }, [updateStateAndPersist, refreshCloudState]);
+  }, [state, updateStateAndPersist, refreshCloudState]);
 
   const updateQueueSettings = useCallback((queueId: string, updates: Partial<Queue>) => {
     updateStateAndPersist((prev) => ({
