@@ -593,7 +593,21 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [updateStateAndPersist]);
 
-  const resetQueue = useCallback((queueId: string) => {
+  const resetQueue = useCallback(async (queueId: string) => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('Please sign in to reset this queue.');
+      const queue = state.queues.find((q) => q.id === queueId);
+      if (!queue) throw new Error('Queue not found.');
+      const now = new Date().toISOString();
+      const { error: visitorError } = await supabase.from('queue_visitors').update({ status: 'served', completed_at: now }).eq('queue_id', queueId).in('status', ['waiting', 'called']);
+      if (visitorError) throw visitorError;
+      const { error: queueError } = await supabase.from('queues').update({ current_number: 0, next_number: queue.startNumber || 1 }).eq('id', queueId);
+      if (queueError) throw queueError;
+      await refreshCloudState();
+      realtimeService.broadcast({ type: 'QUEUE_RESET', queueId });
+      return;
+    }
     updateStateAndPersist((prev) => {
       const queue = prev.queues.find((q) => q.id === queueId);
       if (!queue) return prev;
@@ -691,6 +705,23 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [removeEntry]);
 
   const addWalkIn = useCallback((queueId: string, name?: string, phone?: string, notes?: string): QueueEntry => {
+    if (supabase && /^[0-9a-f-]{36}$/i.test(queueId)) {
+      const queue = state.queues.find((q) => q.id === queueId);
+      if (!queue) throw new Error('Queue not found.');
+      const optimistic: QueueEntry = {
+        id: 'walkin-pending-' + Date.now(), queueId, businessId: queue.businessId,
+        displayNumber: '…', sequenceNumber: 0, customerSessionId: 'walkin-pending-' + Date.now(),
+        customerName: name?.trim() || 'Walk-in Guest', customerPhone: phone?.trim(), notes: notes?.trim(),
+        status: 'waiting', joinedAt: new Date().toISOString(),
+      };
+      void (async () => {
+        const { error } = await supabase.rpc('join_queue', { p_queue_id: queueId, p_customer_name: name?.trim() || 'Walk-in Guest', p_customer_phone: phone?.trim() || null });
+        if (error) { console.error('Could not add walk-in to cloud queue:', error); return; }
+        await refreshCloudState();
+        realtimeService.broadcast({ type: 'CUSTOMER_JOINED', queueId });
+      })();
+      return optimistic;
+    }
     let createdEntry: QueueEntry | null = null;
     updateStateAndPersist((prev) => {
       const queue = prev.queues.find((q) => q.id === queueId);
@@ -801,7 +832,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const createQueue = useCallback((data: { businessId: string; name: string; prefix: string; startNumber: number; averageServiceMinutes: number; allowEstimatedWait: boolean }): Queue => {
     const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'queue-' + Date.now();
     const newQueue: Queue = {
-      id: 'queue_' + Date.now(),
+      id: supabase ? crypto.randomUUID() : 'queue_' + Date.now(),
       businessId: data.businessId,
       name: data.name,
       slug,
@@ -834,8 +865,19 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     setActiveQueueIdState(newQueue.id);
+    if (supabase && /^[0-9a-f-]{36}$/i.test(data.businessId)) {
+      void (async () => {
+        const { error } = await supabase.from('queues').insert({
+          id: newQueue.id, business_id: data.businessId, name: newQueue.name, slug: newQueue.slug,
+          prefix: newQueue.prefix, current_number: 0, next_number: newQueue.nextNumber,
+          estimated_minutes_per_person: newQueue.averageServiceMinutes, is_active: true, is_paused: false,
+        });
+        if (error) { console.error('Could not save new queue to Supabase:', error); return; }
+        await refreshCloudState();
+      })();
+    }
     return newQueue;
-  }, [updateStateAndPersist]);
+  }, [updateStateAndPersist, refreshCloudState]);
 
   const updateQueueSettings = useCallback((queueId: string, updates: Partial<Queue>) => {
     updateStateAndPersist((prev) => ({
