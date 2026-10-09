@@ -794,7 +794,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       if (error) throw new Error(error.message || 'Could not add customer. Please try again.');
       const row = Array.isArray(data) ? data[0] : data;
-      await refreshCloudState();
+      void refreshCloudState();
       const seq = Number(row?.queue_number ?? row?.ticket_number ?? 0);
       const entry: QueueEntry = {
         id: String(row?.id || row?.visitor_id || ('walkin-' + Date.now())), queueId, businessId: queue.businessId,
