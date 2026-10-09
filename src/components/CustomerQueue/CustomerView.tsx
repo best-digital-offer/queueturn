@@ -17,7 +17,7 @@ import {
 import { useQueue } from '../../context/QueueContext';
 import { notificationService } from '../../services/notifications';
 import { soundService } from '../../services/sound';
-import { findPublicQueue, joinCloudQueue, getCloudVisitor, subscribeToCloudQueue } from '../../services/cloudQueue';
+import { findPublicQueue, joinCloudQueue, getCloudVisitor, getCloudQueueStats, subscribeToCloudQueue } from '../../services/cloudQueue';
 import { supabase } from '../../services/supabaseClient';
 import confetti from 'canvas-confetti';
 
@@ -50,6 +50,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const [cloudQueue, setCloudQueue] = useState<any>(null);
   const [cloudBusiness, setCloudBusiness] = useState<any>(null);
   const [cloudVisitor, setCloudVisitor] = useState<any>(null);
+  const [cloudStats, setCloudStats] = useState<any>(null);
+  const [cloudStatsLoaded, setCloudStatsLoaded] = useState(false);
   const [joinError, setJoinError] = useState('');
 
   // Cloud mode: QR/customer links use Supabase when configured.
@@ -66,14 +68,20 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     if (!cloudQueue || !supabase) return;
     const visitorId=localStorage.getItem('queueturn_cloud_visitor_id_'+cloudQueue.id);
     const token=localStorage.getItem('queueturn_cloud_visitor_token_'+cloudQueue.id);
-    if (!visitorId || !token) return;
     let alive=true;
     const refresh=async()=> {
-      const visitor=await getCloudVisitor(visitorId,token);
-      if (alive && visitor) setCloudVisitor(visitor);
+      // Queue-wide totals use a narrow public RPC; visitor details remain token-protected.
+      const [stats, visitor] = await Promise.all([
+        getCloudQueueStats(cloudQueue.id),
+        visitorId && token ? getCloudVisitor(visitorId,token) : Promise.resolve(null),
+      ]);
+      if (!alive) return;
+      if (stats) setCloudStats(stats);
+      setCloudStatsLoaded(true);
+      // Keep the last valid visitor state if a single polling request fails.
+      if (visitor) setCloudVisitor(visitor);
     };
     void refresh();
-    // Public visitors cannot SELECT visitor rows under RLS, so refresh the token-protected RPC periodically.
     const poll=window.setInterval(()=>{ void refresh(); },5000);
     const unsubscribe=subscribeToCloudQueue(cloudQueue.id,()=>{ void refresh(); });
     return ()=>{ alive=false; window.clearInterval(poll); unsubscribe(); };
@@ -86,8 +94,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const activeCustomerEntry = cloudVisitor && (cloudVisitor.status === 'waiting' || cloudVisitor.status === 'called') ? { id:cloudVisitor.visitor_id, displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.queue_number}`, status:cloudVisitor.status === 'called' ? 'serving' : cloudVisitor.status, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
   const positionInfo = cloudVisitor ? { peopleAhead:Number(cloudVisitor.people_ahead||0), estimatedWaitMinutes:Number(cloudVisitor.estimated_wait_minutes||0) } : ((queue && activeCustomerEntry) ? calculatePosition(queue.id, activeCustomerEntry.id) : { peopleAhead: 0, estimatedWaitMinutes: 0 });
 
-  const currentServingEntry = cloudVisitor ? (cloudVisitor.current_number ? {displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.current_number}`} : null) : (queue ? state.entries.find((e) => e.queueId === queue.id && e.status === 'serving') : null);
-  const waitingCount = cloudVisitor ? Number(cloudVisitor.people_ahead||0) : (queue ? state.entries.filter((e) => e.queueId === queue.id && e.status === 'waiting').length : 0);
+  const currentServingEntry = cloudQueue
+    ? (cloudStats?.current_number ? {displayNumber:`${cloudStats.prefix || cloudQueue.prefix || ''}${cloudStats.current_number}`} : null)
+    : (queue ? state.entries.find((e) => e.queueId === queue.id && e.status === 'serving') : null);
+  // In cloud mode, never fall back to demo/local data while public stats are loading or unavailable.
+  const waitingCount: number | null = cloudQueue
+    ? (cloudStats ? Number(cloudStats.total_waiting) : null)
+    : (queue ? state.entries.filter((e) => e.queueId === queue.id && e.status === 'waiting').length : 0);
 
   // Trigger celebration confetti when serving
   useEffect(() => {
@@ -471,7 +484,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
             <div>
               <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Currently Waiting</span>
               <p className="text-3xl sm:text-4xl font-extrabold font-mono-numbers text-slate-800 mt-1">
-                {waitingCount}
+                {cloudQueue && !cloudStatsLoaded ? '—' : waitingCount ?? '—'}
               </p>
             </div>
           </div>
