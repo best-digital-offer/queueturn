@@ -89,7 +89,7 @@ class SoundService {
   /**
    * Voice synthesis announcement e.g. "Now serving A23 at Counter 1"
    */
-  public announceTurn(displayNumber: string, counterName?: string) {
+  public announceTurn(displayNumber: string, counterName?: string, template?: string, businessName?: string) {
     this.playChime();
 
     if (!this.voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -97,9 +97,12 @@ class SoundService {
     }
 
     try {
-      const text = counterName 
-        ? `Now serving, ${displayNumber}, at ${counterName}.`
-        : `Now serving, number ${displayNumber}.`;
+      const defaultTemplate = counterName ? "Now serving, number {number}, at {counter}." : "Now serving, number {number}."; 
+      const selectedTemplate = (template || defaultTemplate).trim() || defaultTemplate;
+      const text = selectedTemplate
+        .replace(/\{number\}/gi, displayNumber)
+        .replace(/\{counter\}/gi, counterName || "the service counter")
+        .replace(/\{business\}/gi, businessName || "");
       const speak = () => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 0.95;
