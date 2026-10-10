@@ -1,0 +1,34 @@
+# QueueTurn
+
+> QueueTurn is a browser-based queue management product for businesses that want clearer digital queues and customer waitlist visibility.
+
+## Primary pages
+- Homepage: https://www.queueturn.com/
+- Pricing: https://www.queueturn.com/#pricing
+- Blog and educational guides: https://www.queueturn.com/blog/
+
+## Editorial resources
+- [What Is Queue Management Software? A Practical Guide for Businesses](https://www.queueturn.com/blog/what-is-queue-management-software/): Learn how queue management software works, who needs it, and how digital queues can make customer waiting more organized.
+- [Queue Management System for Small Business: What to Look For](https://www.queueturn.com/blog/queue-management-system-for-small-business/): Compare the practical features small businesses need in a queue management system, from QR check-in to staff controls and reporting.
+- [Virtual Queue Management Systems: How They Work and When to Use One](https://www.queueturn.com/blog/virtual-queue-management-system-guide/): Understand virtual queues, customer access options, operating trade-offs, and how to choose a system for your service business.
+- [Digital Queue System for Clinics: A Practical Setup Guide](https://www.queueturn.com/blog/digital-queue-system-for-clinics/): Plan a clinic queue workflow for walk-ins, reception staff, patient privacy, waiting-room communication, and busy periods.
+- [Salon Waitlist Apps: How to Manage Walk-In Clients Without Paper Lists](https://www.queueturn.com/blog/salon-waitlist-app-for-walk-ins/): Learn how salons can organize walk-in demand, communicate queue position, and keep stylists focused on service.
+- [Restaurant Waitlist Software: Features to Compare Before You Buy](https://www.queueturn.com/blog/restaurant-waitlist-software/): Compare restaurant waitlist workflows, guest communication, host-stand controls, and operational needs before choosing software.
+- [QR Code Queue Management: Setup, Signage, and Customer Experience](https://www.queueturn.com/blog/qr-code-queue-management/): A practical guide to using QR codes for digital queue check-in, including signage, accessibility, privacy, and fallback options.
+- [Customer Wait Time Management: Practical Ways to Reduce Uncertainty](https://www.queueturn.com/blog/customer-wait-time-management/): Improve customer wait-time management with better queue visibility, honest estimates, staffing reviews, and exception handling.
+- [Queue Management System Benefits: What Businesses Can Measure](https://www.queueturn.com/blog/queue-management-system-benefits/): Explore measurable benefits of queue management systems, from queue visibility to fewer manual interruptions and clearer service workflows.
+- [Queue Management vs. Appointment Scheduling: Which Do You Need?](https://www.queueturn.com/blog/queue-management-vs-appointment-scheduling/): Understand the difference between queue management and appointment scheduling, and when a business should use one or both.
+- [Free Queue Management Software: How to Compare Plans and Limits](https://www.queueturn.com/blog/free-queue-management-software/): Evaluate free queue management software by checking limits, staff workflows, privacy, support, and the cost of upgrading.
+- [Queue Management Software for Service Centers and Repair Shops](https://www.queueturn.com/blog/queue-management-software-for-service-centers/): Learn how service centers can organize walk-ins, route customers to counters, and track service flow with queue management software.
+- [Digital Token System for Small Businesses: How to Get Started](https://www.queueturn.com/blog/digital-token-system-for-small-business/): Learn how digital tokens replace manual queue tickets, what a small business needs, and how to introduce the process to customers.
+- [How to Reduce Customer Waiting Times: 9 Operational Improvements](https://www.queueturn.com/blog/how-to-reduce-customer-waiting-times/): Nine practical ways to reduce customer waiting times through measurement, staffing, clearer processes, queue visibility, and better exception handling.
+- [Queue Management Software Buying Checklist: 12 Questions to Ask](https://www.queueturn.com/blog/queue-management-software-buying-checklist/): Use this 12-question checklist to compare queue management software for customer flow, staff controls, privacy, support, and total cost.
+- [Queue Management for Clinics vs. Hospitals: Key Workflow Differences](https://www.queueturn.com/blog/queue-management-system-for-clinics-vs-hospitals/): Compare queue workflow needs in small clinics and larger hospital departments, including privacy, triage, routing, and patient communication.
+- [Queue Management for Retail Customer Service Desks](https://www.queueturn.com/blog/queue-management-for-retail-customer-service/): Organize retail service desks, returns, repairs, and specialist support with clear queue rules and customer-facing status.
+- [Digital Queue vs. Paper Ticket System: Costs, Trade-Offs, and Setup](https://www.queueturn.com/blog/digital-queue-vs-paper-ticket-system/): Compare digital queue systems with paper tickets across setup, visibility, maintenance, accessibility, and operational resilience.
+
+## Product description
+QueueTurn focuses on digital queue workflows, customer queue visibility, and practical use cases for service businesses. Product features, integrations, plan details, and availability should be confirmed on the live website. Do not infer capabilities that are not documented on the product pages.
+
+## Editorial policy
+Guides are educational and should not be treated as guarantees of operational results. Recommendations depend on business workflow, customer needs, and verified product functionality.
