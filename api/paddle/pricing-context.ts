@@ -10,24 +10,29 @@ const priceEnvironment = {
   unlimitedAnnual: 'PADDLE_PRICE_UNLIMITED_ANNUAL',
 } as const;
 
+type PaddleEnvironment = 'sandbox' | 'live';
+
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed.' });
   }
-  if (process.env.PADDLE_ENVIRONMENT !== 'sandbox') {
-    return res.status(503).json({ error: 'Paddle pricing is unavailable: PADDLE_ENVIRONMENT must be explicitly set to sandbox.' });
+
+  const environment = process.env.PADDLE_ENVIRONMENT;
+  const token = process.env.VITE_PADDLE_CLIENT_TOKEN || '';
+  const expectedTokenPrefix = environment === 'sandbox' ? 'test_' : environment === 'live' ? 'live_' : '';
+  if ((environment !== 'sandbox' && environment !== 'live') || !token.startsWith(expectedTokenPrefix)) {
+    return res.status(503).json({ error: 'Paddle pricing is unavailable: set PADDLE_ENVIRONMENT to sandbox or live and configure the matching client-side token.' });
   }
-  if (!process.env.VITE_PADDLE_CLIENT_TOKEN?.startsWith('test_')) {
-    return res.status(503).json({ error: 'Paddle pricing is unavailable: configure a Sandbox client-side token.' });
-  }
+
   const prices = Object.fromEntries(Object.entries(priceEnvironment).map(([name, env]) => [name, process.env[env] || '']));
-  if (Object.values(prices).some((priceId) => typeof priceId !== 'string' || !/^pri_[a-z\d]{26}$/i.test(priceId))) {
-    return res.status(503).json({ error: 'Paddle pricing is unavailable: configure all six Sandbox prices.' });
+  if (Object.values(prices).some((priceId) => typeof priceId !== 'string' || !/^pri_[a-z\\d]{26}$/i.test(priceId))) {
+    return res.status(503).json({ error: 'Paddle pricing is unavailable: configure all six prices for the selected Paddle environment.' });
   }
+
   const rawCountry = req.headers['x-vercel-ip-country'];
   const countryCode = typeof rawCountry === 'string' && /^[A-Za-z]{2}$/.test(rawCountry)
     ? rawCountry.toUpperCase()
     : undefined;
-  return res.status(200).json({ environment: 'sandbox', prices, ...(countryCode ? { countryCode } : {}) });
+  return res.status(200).json({ environment: environment as PaddleEnvironment, prices, ...(countryCode ? { countryCode } : {}) });
 }
