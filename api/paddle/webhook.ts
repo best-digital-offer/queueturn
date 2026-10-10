@@ -1,6 +1,7 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { signedSupabaseUserId } from './checkout-signature';
 
 type VercelRequest = AsyncIterable<Buffer | string> & {
   method?: string;
@@ -147,6 +148,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const plan = mappedPrice?.plan || customPlan;
     const billingCycle = mappedPrice?.billingCycle || customBillingCycle;
     const eventStatus = statusForEvent(eventType, data.status);
+    let userId = signedSupabaseUserId(custom, secret);
+
+    // Older subscriptions may predate signed checkout metadata. A matching
+    // Paddle subscription ID already stored in our database is authoritative.
+    if (!userId && typeof subscriptionId === 'string' && subscriptionId.startsWith('sub_')) {
+      const { data: knownSubscription, error: knownSubscriptionError } = await supabase
+        .from('billing_subscriptions')
+        .select('user_id')
+        .eq('paddle_subscription_id', subscriptionId)
+        .maybeSingle();
+      if (knownSubscriptionError) throw knownSubscriptionError;
+      userId = typeof knownSubscription?.user_id === 'string' ? knownSubscription.user_id : null;
+    }
+
+    // Complete a checkout created by the previous transaction-based flow only
+    // when its Paddle transaction ID matches a server-owned pending reservation.
+    if (!userId && typeof transactionId === 'string' && transactionId.startsWith('txn_')) {
+      const { data: pendingCheckout, error: pendingCheckoutError } = await supabase
+        .from('billing_subscriptions')
+        .select('user_id')
+        .eq('paddle_transaction_id', transactionId)
+        .eq('status', 'pending')
+        .is('paddle_subscription_id', null)
+        .maybeSingle();
+      if (pendingCheckoutError) throw pendingCheckoutError;
+      userId = typeof pendingCheckout?.user_id === 'string' ? pendingCheckout.user_id : null;
+    }
 
     // Transaction completion can create a pending subscription record and enrich
     // metadata, but it never grants access. Subscription lifecycle events do that.
@@ -154,7 +182,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         || eventType === 'transaction.payment_failed' || eventType === 'transaction.past_due') {
       if (typeof subscriptionId === 'string' && subscriptionId.startsWith('sub_')) {
         const { error } = await supabase.rpc('sync_paddle_subscription_event', {
-          p_user_id: typeof custom.supabase_user_id === 'string' ? custom.supabase_user_id : null,
+          p_user_id: userId,
           p_plan: plan,
           p_billing_cycle: billingCycle,
           p_status: eventStatus,

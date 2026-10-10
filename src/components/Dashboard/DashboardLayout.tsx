@@ -50,7 +50,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'queues' | 'customers' | 'display' | 'qrcode' | 'analytics' | 'settings' | 'staff' | 'billing'
-  >('dashboard');
+  >(() => new URLSearchParams(window.location.search).get('tab') === 'billing' ? 'billing' : 'dashboard');
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

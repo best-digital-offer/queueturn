@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import { signedSupabaseUserId } from '../checkout-signature';
 
 type VercelRequest = {
   method?: string;
   headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
 };
 type VercelResponse = {
   setHeader(name: string, value: string): void;
@@ -53,8 +55,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: 'Could not close the previous checkout. Please try again.' });
   }
 
-  const transactionId = pendingCheckout?.paddle_transaction_id;
+  const bodyTransactionId = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
+    ? (req.body as { transactionId?: unknown }).transactionId
+    : undefined;
+  if (bodyTransactionId !== undefined && typeof bodyTransactionId !== 'string') {
+    return res.status(400).json({ error: 'Checkout transaction is invalid.' });
+  }
+  const transactionId = typeof bodyTransactionId === 'string'
+    ? bodyTransactionId
+    : pendingCheckout?.paddle_transaction_id;
   if (typeof transactionId === 'string' && /^txn_[a-z\d]{26}$/i.test(transactionId)) {
+    if (transactionId !== pendingCheckout?.paddle_transaction_id) {
+      let transactionLookup: Response;
+      try {
+        transactionLookup = await fetch(`https://sandbox-api.paddle.com/transactions/${transactionId}`, {
+          headers: { Authorization: `Bearer ${paddleApiKey}`, 'Paddle-Version': '1' },
+          signal: AbortSignal.timeout(10_000),
+        });
+      } catch {
+        return res.status(502).json({ error: 'Paddle could not verify the checkout that was closed.' });
+      }
+      const transactionPayload = await transactionLookup.json().catch(() => ({}));
+      const custom = transactionPayload?.data?.custom_data;
+      if (!transactionLookup.ok || !custom || signedSupabaseUserId(custom, process.env.PADDLE_WEBHOOK_SECRET || '') !== user.id) {
+        return res.status(403).json({ error: 'This checkout does not belong to your account.' });
+      }
+    }
     let response: Response;
     try {
       response = await fetch(`https://sandbox-api.paddle.com/transactions/${transactionId}`, {

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createHmac } from 'node:crypto';
 
 type VercelRequest = {
   method?: string;
@@ -69,8 +70,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // This project is intentionally Sandbox-only. Fail closed if its configuration drifts.
-  const paddleApiKey = process.env.PADDLE_API_KEY;
-  if (process.env.PADDLE_ENVIRONMENT !== 'sandbox' || !paddleApiKey?.startsWith('pdl_sdbx_')) {
+  const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
+  if (process.env.PADDLE_ENVIRONMENT !== 'sandbox'
+      || !process.env.VITE_PADDLE_CLIENT_TOKEN?.startsWith('test_')
+      || !webhookSecret) {
     return res.status(503).json({ error: 'Paddle Sandbox billing is not configured.' });
   }
 
@@ -98,56 +101,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Your session is invalid. Please sign in again.' });
   }
 
-  const origin = process.env.APP_BASE_URL || 'https://www.queueturn.com';
-  let response: Response;
-  try {
-    response = await fetch('https://sandbox-api.paddle.com/transactions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${paddleApiKey}`,
-        'Content-Type': 'application/json',
-        'Paddle-Version': '1',
-      },
-      body: JSON.stringify({
-        items: [{ price_id: priceId, quantity: 1 }],
-        collection_mode: 'automatic',
-        checkout: { url: origin },
-        custom_data: { supabase_user_id: user.id, plan, billing_cycle: billingCycle },
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-  } catch {
-    // The remote create may have succeeded despite a timeout; keep the reservation
-    // briefly so an immediate retry cannot create another draft transaction.
-    console.error('Paddle Sandbox transaction request failed before a response was received.');
-    return res.status(502).json({ error: 'Paddle did not respond. Please wait up to 30 minutes before trying checkout again.' });
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    console.error('Paddle Sandbox transaction creation failed', response.status, payload?.error?.code || 'unknown');
-    const { error: releaseError } = await admin.rpc('release_paddle_checkout', { p_user_id: user.id });
-    if (releaseError) console.error('Could not release failed checkout reservation', releaseError.code || 'unknown');
-    return res.status(502).json({ error: 'Paddle could not create checkout. Verify the Sandbox configuration and try again.' });
-  }
-
-  const checkoutUrl = payload?.data?.checkout?.url;
-  const transactionId = payload?.data?.id;
-  if (typeof checkoutUrl !== 'string' || typeof transactionId !== 'string' || !transactionId.startsWith('txn_')) {
-    // The transaction may exist; keep the reservation to prevent creating a second one immediately.
-    return res.status(502).json({ error: 'Paddle did not return a usable checkout. Please wait up to 30 minutes before trying again.' });
-  }
-
-  const { error: transactionSaveError } = await admin
-    .from('billing_subscriptions')
-    .update({ paddle_transaction_id: transactionId })
-    .eq('user_id', user.id)
-    .eq('status', 'pending')
-    .is('paddle_subscription_id', null);
-  if (transactionSaveError) {
-    console.error('Could not save Paddle checkout transaction', transactionSaveError.code || 'unknown');
-    return res.status(503).json({ error: 'Checkout could not be saved. Please close it and try again.' });
-  }
-
-  return res.status(200).json({ checkoutUrl, transactionId });
+  // The identity and selected tier travel to Paddle as signed custom data. The
+  // webhook verifies this signature before it associates a subscription with a user.
+  const issuedAt = String(Math.floor(Date.now() / 1000));
+  const signature = createHmac('sha256', webhookSecret)
+    .update(`${user.id}:${plan}:${billingCycle}:${issuedAt}`)
+    .digest('hex');
+  return res.status(200).json({
+    priceId,
+    plan,
+    billingCycle,
+    email: user.email || null,
+    customData: {
+      supabase_user_id: user.id,
+      plan,
+      billing_cycle: billingCycle,
+      checkout_issued_at: issuedAt,
+      checkout_signature: signature,
+    },
+  });
 }

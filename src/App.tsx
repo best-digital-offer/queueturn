@@ -14,6 +14,7 @@ import { IndustryPage } from './components/SeoPages/IndustryPage';
 import { AuthModal } from './components/Auth/AuthModal';
 import { supabase } from './services/supabaseClient';
 import { LegalPages } from './components/LegalPages';
+import { WelcomePage } from './components/Billing/WelcomePage';
 
 function AppContent() {
   const { currentBusiness, activeQueue, state } = useQueue();
@@ -42,8 +43,9 @@ function AppContent() {
   }, []);
 
   // Read URL query params on initial load
-  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo' | 'legal'>(() => {
+  const [currentView, setCurrentView] = useState<'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo' | 'legal' | 'welcome'>(() => {
     if (typeof window !== 'undefined') {
+      if (window.location.pathname === '/welcome') return 'welcome';
       const params = new URLSearchParams(window.location.search);
       const pageParam = params.get('page');
       if (pageParam) return 'legal';
@@ -88,6 +90,7 @@ function AppContent() {
   // Handle browser popstate / back button
   useEffect(() => {
     const handlePopState = () => {
+      if (window.location.pathname === '/welcome') { setCurrentView('welcome'); return; }
       const params = new URLSearchParams(window.location.search);
       const viewParam = params.get('view');
       if (viewParam === 'customer') setCurrentView('customer');
@@ -136,7 +139,7 @@ function AppContent() {
 
   // After authentication, send users straight to their dashboard rather than the marketing home.
   useEffect(() => {
-    if (isSignedIn && currentView === 'landing') {
+    if (isSignedIn && currentView === 'landing' && !sessionStorage.getItem('queueturn-pending-checkout')) {
       setCurrentView('dashboard');
       const url = new URL(window.location.href);
       url.searchParams.set('view', 'dashboard');
@@ -158,7 +161,7 @@ function AppContent() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       {/* Public marketing home is only shown before sign-in. */}
-      {!isSignedIn && <DemoControlBar
+      {!isSignedIn && currentView !== 'welcome' && <DemoControlBar
         currentView={currentView}
         onNavigate={handleNavigate}
         activeQueueSlug={activeQueue?.slug || activeQueueSlug}
@@ -168,9 +171,15 @@ function AppContent() {
       {/* Main View Router */}
       <div className="flex-1 flex flex-col">
         {currentView === 'legal' && <LegalPages page={new URLSearchParams(window.location.search).get('page') || 'about'} />}
+        {currentView === 'welcome' && <WelcomePage onContinue={() => {
+          const url = new URL('/', window.location.origin);
+          url.searchParams.set('view', 'dashboard');
+          window.history.replaceState({}, '', url.toString());
+          setCurrentView('dashboard');
+        }} />}
 
         {currentView === 'landing' && (
-          <LandingPage
+      <LandingPage
             onStartFree={() => {
               setAuthModalMode('signup');
               setAuthModalOpen(true);
@@ -181,6 +190,21 @@ function AppContent() {
             onSelectIndustry={(slug) => {
               setSelectedIndustrySlug(slug);
               handleNavigate('seo');
+            }}
+            onSubscribe={(plan, cycle) => {
+              if (isSignedIn) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('view', 'dashboard');
+                url.searchParams.set('tab', 'billing');
+                url.searchParams.set('subscribe', plan);
+                url.searchParams.set('cycle', cycle);
+                window.history.pushState({}, '', url.toString());
+                setCurrentView('dashboard');
+                return;
+              }
+              sessionStorage.setItem('queueturn-pending-checkout', JSON.stringify({ plan, cycle }));
+              setAuthModalMode('signup');
+              setAuthModalOpen(true);
             }}
           />
         )}
@@ -228,6 +252,25 @@ function AppContent() {
         onSuccess={() => {
           setAuthModalOpen(false);
           handleNavigate('dashboard');
+          const pending = sessionStorage.getItem('queueturn-pending-checkout');
+          if (pending) {
+            try {
+              const selection = JSON.parse(pending) as { plan: string; cycle: string };
+              if (['starter', 'pro', 'unlimited'].includes(selection.plan)
+                  && ['monthly', 'annual'].includes(selection.cycle)) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('view', 'dashboard');
+                url.searchParams.set('tab', 'billing');
+                url.searchParams.set('subscribe', selection.plan);
+                url.searchParams.set('cycle', selection.cycle);
+                window.history.replaceState({}, '', url.toString());
+              }
+            } catch {
+              // Ignore malformed stale browser state; authentication should still succeed.
+            } finally {
+              sessionStorage.removeItem('queueturn-pending-checkout');
+            }
+          }
         }}
       />
     </div>

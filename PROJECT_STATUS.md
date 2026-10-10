@@ -1,23 +1,32 @@
 # Project Status
 
 ## Done
-- Paddle Sandbox checkout reservation can be explicitly canceled from the billing page.
-- Closing an unpaid Paddle.js checkout cancels its draft transaction and releases the reservation.
+- Paddle Sandbox checkout reservations can be closed from the billing page, and closing an unpaid Paddle.js checkout cancels the draft transaction and releases the reservation.
 - Existing Sandbox subscriptions can preview prorated plan changes and confirm an upgrade on the same Paddle subscription.
-- Billing buttons show Upgrade to the next tier for active subscribers, and the webhook syncs the new plan and billing cycle from the Paddle price.
+- Added a country-aware Starter, Pro, and Advanced pricing table with monthly/yearly prices from Paddle `PricePreview` and exact-price Paddle.js overlay checkout.
+- New checkout metadata is signed server-side and verified before the webhook associates it with a Supabase user.
+- Successful checkout redirects to `/welcome`; signed-in customer email is prefilled.
+- Sandbox-only configuration fails closed; `.env.example` documents the required variables and Dashboard payment-link setup.
 
 ## In progress
-- Review and deploy the subscription upgrade flow.
+- Validate the branch and Sandbox preview checkout, then prepare the Vercel deployment.
 
 ## Next
-- Verify the deployed upgrade preview endpoint, then complete a Sandbox upgrade as a signed-in customer.
+- Confirm Sandbox localized prices and checkout overlay open/close on the deployed preview.
+- Complete a Sandbox payment and verify `/welcome` redirect using a separate Sandbox customer account; do not disrupt the existing Starter subscription.
+- Confirm the Sandbox catalog product currently mapped to Advanced is named appropriately.
+
+## Open questions
+- The six existing Paddle price IDs use the internal `unlimited` key and are displayed as “Advanced” in QueueTurn. Paddle checkout uses the product name in its catalog, so rename that Sandbox product to “Advanced” in Paddle if it currently says “Unlimited.”
+- The Sandbox default payment link must be set in Paddle Dashboard under Checkout > Checkout configuration.
 
 ## Decisions
-- Keep the reservation guard for new subscriptions; upgrades update the existing Paddle subscription.
-- Show the Paddle-calculated amount due now and recurring amount, then require confirmation before applying the change.
-- Apply upgrades only in Paddle Sandbox, with payment failure configured to prevent the plan change.
+- Keep the existing reservation guard for new subscriptions; upgrades change the existing Paddle subscription.
+- Use only explicit Paddle Sandbox configuration in this branch and never call Paddle Live.
+- Display Paddle's formatted preview totals without frontend price calculations.
 
 ## Verification
 - `npm run lint` — passed.
 - `npm run build` — passed; existing Vite `__dirname` configuration warning remains.
-- Subscription upgrade has not yet been exercised with a signed-in Sandbox customer.
+- `npm test` — pending final rerun.
+- Sandbox checkout completion has not yet been exercised; an existing active subscription must not be changed solely for test verification.
