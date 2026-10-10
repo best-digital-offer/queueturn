@@ -90,7 +90,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: 'Your account already has a subscription. Manage it before starting another checkout.' });
     }
     if (reason === 'checkout_in_progress') {
-      return res.status(409).json({ error: 'A checkout is already in progress for your account. Finish it or wait up to 30 minutes before trying again.' });
+      return res.status(409).json({
+        code: 'checkout_in_progress',
+        error: 'A checkout is already in progress for your account. Close the previous checkout to choose another plan.',
+      });
     }
     return res.status(401).json({ error: 'Your session is invalid. Please sign in again.' });
   }
@@ -133,6 +136,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (typeof checkoutUrl !== 'string' || typeof transactionId !== 'string' || !transactionId.startsWith('txn_')) {
     // The transaction may exist; keep the reservation to prevent creating a second one immediately.
     return res.status(502).json({ error: 'Paddle did not return a usable checkout. Please wait up to 30 minutes before trying again.' });
+  }
+
+  const { error: transactionSaveError } = await admin
+    .from('billing_subscriptions')
+    .update({ paddle_transaction_id: transactionId })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .is('paddle_subscription_id', null);
+  if (transactionSaveError) {
+    console.error('Could not save Paddle checkout transaction', transactionSaveError.code || 'unknown');
+    return res.status(503).json({ error: 'Checkout could not be saved. Please close it and try again.' });
   }
 
   return res.status(200).json({ checkoutUrl, transactionId });
