@@ -12,7 +12,7 @@ type VercelResponse = {
   json(body: unknown): VercelResponse;
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed.' });
@@ -115,4 +115,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   return res.status(200).json({ released: Boolean(released) });
+}
+
+
+export default async function safeHandler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return await handler(req, res);
+  } catch (error) {
+    console.error('Unexpected Paddle checkout cancellation error', error instanceof Error ? error.message : 'unknown');
+    return res.status(500).json({ error: 'The checkout could not be closed because of a server error. Please try again or contact support@queueturn.com.' });
+  }
 }
