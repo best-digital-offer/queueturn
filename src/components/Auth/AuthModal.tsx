@@ -16,34 +16,13 @@ import { BusinessType } from '../../types/queue';
 import { QrCodeCanvas } from '../Common/QrCodeCanvas';
 import { supabase } from '../../services/supabaseClient';
 
-// QueueTurn requires a business-domain email. This blocks consumer mailboxes and
-// common disposable providers in the UI; the database trigger enforces the same
-// rule for direct API calls.
-const PERSONAL_EMAIL_DOMAINS = new Set([
-  'gmail.com','googlemail.com','yahoo.com','yahoo.co.in','ymail.com','rocketmail.com',
-  'outlook.com','hotmail.com','live.com','msn.com','icloud.com','me.com','mac.com',
-  'aol.com','proton.me','protonmail.com','pm.me','gmx.com','gmx.net','mail.com',
-  'yandex.com','yandex.ru','zoho.com','zohomail.com','fastmail.com','tutanota.com',
-  'tuta.com','hey.com','rediffmail.com','inbox.com','qq.com','163.com','126.com',
-  'yeah.net','hushmail.com','mail.ru','bk.ru','list.ru','rambler.ru'
-]);
-const DISPOSABLE_EMAIL_DOMAINS = new Set([
-  'mailinator.com','guerrillamail.com','guerrillamail.net','sharklasers.com',
-  'grr.la','yopmail.com','yopmail.fr','temp-mail.org','temp-mail.io',
-  '10minutemail.com','10minutemail.net','throwawaymail.com','dispostable.com',
-  'getnada.com','emailondeck.com','tempmail.com','tempail.com','fakeinbox.com',
-  'maildrop.cc','mintemail.com','mohmal.com','burnermail.io','inboxkitten.com',
-  'trashmail.com','trashmail.net','discard.email','spamgourmet.com','mailnesia.com',
-  'tempr.email','tmpmail.org','tmpmail.net','emailfake.com','crazymailing.com',
-  'harakirimail.com','mytemp.email','tempinbox.com','tmail.com','dropmail.me'
-]);
-function workEmailError(value: string): string | null {
-  const normalized = value.trim().toLowerCase();
+// Accept both business and personal email addresses. Email confirmation verifies ownership.
+function emailError(value: string): string | null {
+  const normalized = value.trim();
   const parts = normalized.split('@');
-  if (parts.length !== 2 || !parts[0] || !parts[1] || !parts[1].includes('.')) return 'Enter a valid work email address.';
-  const domain = parts[1].replace(/\.$/, '');
-  if (PERSONAL_EMAIL_DOMAINS.has(domain)) return 'Please use your company or business email. Personal email providers such as Gmail are not allowed.';
-  if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) return 'Temporary/disposable email addresses are not allowed. Please use your work email.';
+  if (parts.length !== 2 || !parts[0] || !parts[1] || !parts[1].includes('.')) {
+    return 'Enter a valid email address.';
+  }
   return null;
 }
 
@@ -93,8 +72,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     setAuthMessage('');
-    const emailError = workEmailError(email);
-    if (emailError) { setAuthMessage(emailError); return; }
+    const invalidEmail = emailError(email);
+    if (invalidEmail) { setAuthMessage(invalidEmail); return; }
     if (!businessName.trim() || !ownerName.trim() || !email.trim()) return;
     setMode('onboarding');
   };
@@ -106,8 +85,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const emailInput = form.querySelector('input[type="email"]') as HTMLInputElement | null;
     const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement | null;
     if (!emailInput || !passwordInput) return;
-    const emailError = workEmailError(emailInput.value);
-    if (emailError) { setAuthMessage(emailError); return; }
+    const invalidEmail = emailError(emailInput.value);
+    if (invalidEmail) { setAuthMessage(invalidEmail); return; }
     if (!supabase) { setAuthMessage('Authentication service is unavailable. Please try again later.'); return; }
     setBusy(true);
     try {
@@ -116,7 +95,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const message = error.message.toLowerCase();
         setAuthMessage(message.includes('email not confirmed') || message.includes('not confirmed')
           ? 'Your email is not verified yet. Check your inbox for the confirmation link, or use Resend confirmation email below.'
-          : 'Sign-in failed. Check your work email and password. If you just signed up, confirm your email first.');
+          : 'Sign-in failed. Check your email and password. If you just signed up, confirm your email first.');
         return;
       }
       if (data.user) {
@@ -176,9 +155,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const form = document.querySelector('form') as HTMLFormElement | null;
     const emailInput = form?.querySelector('input[type="email"]') as HTMLInputElement | null;
     const address = emailInput?.value.trim() || email.trim();
-    if (!address) { setAuthMessage('Enter your work email first.'); return; }
-    const emailError = workEmailError(address);
-    if (emailError) { setAuthMessage(emailError); return; }
+    if (!address) { setAuthMessage('Enter your email address first.'); return; }
+    const invalidEmail = emailError(address);
+    if (invalidEmail) { setAuthMessage(invalidEmail); return; }
     if (!supabase) { setAuthMessage('Authentication service is unavailable.'); return; }
     setBusy(true);
     setAuthMessage('');
@@ -206,7 +185,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             businessName, ownerName, businessType, queueName, prefixFormat, startNumber,
             avgServiceMinutes, allowEstimatedWait
           }));
-          setAuthMessage('Account created. Verification is required before sign-in. Check your inbox and spam folder for the QueueTurn confirmation email. After confirming, sign in with the same work email and password.');
+          setAuthMessage('Account created. Verification is required before sign-in. Check your inbox and spam folder for the QueueTurn confirmation email. After confirming, sign in with the same email and password.');
           setMode('login');
           return;
         }
@@ -268,7 +247,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </span>
                 <h2 className="text-2xl font-black text-slate-900 mt-1">Get Started with Queue Turn</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Start serving walk-in customers digitally in under 2 minutes. Use a company email; personal and disposable addresses are not accepted.
+                  Start serving walk-in customers digitally in under 2 minutes. Use an email address you can access. We'll ask you to verify it before signing in.
                 </p>
                 {authMessage && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{authMessage}</div>}
               </div>
@@ -304,12 +283,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Work Email
+                    Email
                   </label>
                   <input
                     type="email"
                     required
-                    placeholder="you@business.com"
+                    placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500"
