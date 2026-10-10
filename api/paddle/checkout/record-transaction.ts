@@ -20,10 +20,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const paddleApiKey = process.env.PADDLE_API_KEY;
   const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
+  const environment = process.env.PADDLE_ENVIRONMENT;
+  const sandbox = environment === 'sandbox';
+  const live = environment === 'live';
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !webhookSecret
-      || process.env.PADDLE_ENVIRONMENT !== 'sandbox' || !paddleApiKey?.startsWith('pdl_sdbx_')) {
-    return res.status(503).json({ error: 'Paddle Sandbox checkout is not configured.' });
+      || !(sandbox || live)
+      || !(sandbox ? paddleApiKey?.startsWith('pdl_sdbx_') : paddleApiKey?.startsWith('pdl_live_'))) {
+    return res.status(503).json({ error: 'Paddle checkout is not configured for the selected environment.' });
   }
+  const paddleApiBase = sandbox ? 'https://sandbox-api.paddle.com' : 'https://api.paddle.com';
 
   const supabase = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
@@ -37,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let response: Response;
   try {
-    response = await fetch(`https://sandbox-api.paddle.com/transactions/${transactionId}`, {
+    response = await fetch(`${paddleApiBase}/transactions/${transactionId}`, {
       headers: { Authorization: `Bearer ${paddleApiKey}`, 'Paddle-Version': '1' },
       signal: AbortSignal.timeout(10_000),
     });
