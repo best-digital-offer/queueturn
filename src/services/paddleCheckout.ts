@@ -81,9 +81,15 @@ async function getPaddle(): Promise<Paddle> {
 
 export async function previewPaddlePrices(request: PricePreviewParams, countryCode?: string): Promise<PricePreviewResponse> {
   const paddle = await getPaddle();
-  const contextualRequest = countryCode
-    ? { ...request, address: { ...request.address, countryCode } }
-    : request;
+  // Paddle only inferred USD for an Indian address in the current Live account.
+  // Explicitly request INR for Indian pricing previews; leave all other countries
+  // on Paddle's normal localized-currency behavior. Display Paddle's formatted totals,
+  // never perform client-side currency conversion.
+  const contextualRequest: PricePreviewParams = {
+    ...request,
+    ...(countryCode ? { address: { ...request.address, countryCode } } : {}),
+    ...(countryCode?.toUpperCase() === 'IN' ? { currencyCode: 'INR' } : {}),
+  };
   return paddle.PricePreview(contextualRequest);
 }
 
