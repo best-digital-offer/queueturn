@@ -26,6 +26,15 @@ const subscriptionEvents = new Set([
   'subscription.canceled',
 ]);
 
+const priceMappings = [
+  { plan: 'starter', billingCycle: 'monthly', env: 'PADDLE_PRICE_STARTER_MONTHLY' },
+  { plan: 'starter', billingCycle: 'annual', env: 'PADDLE_PRICE_STARTER_ANNUAL' },
+  { plan: 'pro', billingCycle: 'monthly', env: 'PADDLE_PRICE_PRO_MONTHLY' },
+  { plan: 'pro', billingCycle: 'annual', env: 'PADDLE_PRICE_PRO_ANNUAL' },
+  { plan: 'unlimited', billingCycle: 'monthly', env: 'PADDLE_PRICE_UNLIMITED_MONTHLY' },
+  { plan: 'unlimited', billingCycle: 'annual', env: 'PADDLE_PRICE_UNLIMITED_ANNUAL' },
+];
+
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
@@ -121,13 +130,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const custom = data.custom_data && typeof data.custom_data === 'object' ? data.custom_data : {};
-    const plan = ['starter', 'pro', 'unlimited'].includes(custom.plan) ? custom.plan : null;
-    const billingCycle = ['monthly', 'annual'].includes(custom.billing_cycle) ? custom.billing_cycle : null;
+    const customPlan = ['starter', 'pro', 'unlimited'].includes(custom.plan) ? custom.plan : null;
+    const customBillingCycle = ['monthly', 'annual'].includes(custom.billing_cycle) ? custom.billing_cycle : null;
     const id = typeof data.id === 'string' ? data.id : '';
     const subscriptionId = id.startsWith('sub_') ? id : data.subscription_id;
     const transactionId = id.startsWith('txn_') ? id : data.transaction_id;
     const customerId = typeof data.customer_id === 'string' ? data.customer_id : null;
-    const priceId = data.items?.[0]?.price?.id || data.items?.[0]?.price_id || null;
+    const items = Array.isArray(data.items) ? data.items : [];
+    const mappedPlanItem = items.find((item: any) => {
+      const itemPriceId = item?.price?.id || item?.price_id;
+      return priceMappings.some(mapping => process.env[mapping.env] === itemPriceId);
+    });
+    const priceId = mappedPlanItem?.price?.id || mappedPlanItem?.price_id
+      || items[0]?.price?.id || items[0]?.price_id || null;
+    const mappedPrice = priceMappings.find(mapping => process.env[mapping.env] === priceId);
+    const plan = mappedPrice?.plan || customPlan;
+    const billingCycle = mappedPrice?.billingCycle || customBillingCycle;
     const eventStatus = statusForEvent(eventType, data.status);
 
     // Transaction completion can create a pending subscription record and enrich
