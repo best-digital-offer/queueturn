@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Check, X, CreditCard, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
-import { openPaddleCheckout } from '../../services/paddleCheckout';
+import { openPaddleCheckout, releasePaddleCheckout } from '../../services/paddleCheckout';
 
 type PlanId = 'free' | 'starter' | 'pro' | 'unlimited';
 type BillingCycle = 'monthly' | 'annual';
@@ -57,6 +57,8 @@ export const BillingTab: React.FC = () => {
   }, []);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutReservation, setCheckoutReservation] = useState(false);
 
   const plans: { id: PlanId; name: string; monthly: number; annual: number; description: string; features: { label: string; included: boolean }[]; cta: string; popular?: boolean }[] = [
     { id: 'free', name: 'Free', monthly: 0, annual: 0, description: 'Get started with the essentials for your business.', features: [
@@ -98,7 +100,7 @@ export const BillingTab: React.FC = () => {
   };
 
   const handleSelectPlan = async (planId: PlanId) => {
-    if (planId === currentPlan || isCheckingOut) return;
+    if (planId === currentPlan || isCheckingOut || checkoutOpen) return;
     if (planId === 'free') {
       setSuccessToast('Free plan selected for preview. Paid subscriptions must be cancelled through the billing provider before downgrading.');
       return;
@@ -109,6 +111,7 @@ export const BillingTab: React.FC = () => {
     }
     setIsCheckingOut(true);
     setSuccessToast(null);
+    let checkoutStarted = false;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -121,10 +124,35 @@ export const BillingTab: React.FC = () => {
         body: JSON.stringify({ plan: planId, billingCycle }),
       });
       const result = await response.json();
+      if (result.code === 'checkout_in_progress') setCheckoutReservation(true);
       if (!response.ok || !result.transactionId) throw new Error(result.error || 'Could not start checkout.');
-      await openPaddleCheckout(result.transactionId);
+      setCheckoutReservation(false);
+      checkoutStarted = true;
+      setCheckoutOpen(true);
+      await openPaddleCheckout(result.transactionId, {
+        onClosed: () => {
+          setSuccessToast('Checkout closed. You can choose any plan now.');
+          setCheckoutOpen(false);
+        },
+        onCloseError: (closeError) => {
+          setCheckoutReservation(true);
+          setSuccessToast(closeError.message);
+          setCheckoutOpen(false);
+        },
+        onCompleted: () => {
+          setSuccessToast('Payment submitted. Paddle is confirming your subscription.');
+        },
+      });
     } catch (error) {
       setSuccessToast(error instanceof Error ? error.message : 'Could not start checkout.');
+      if (checkoutStarted) {
+        setCheckoutOpen(false);
+        try {
+          await releasePaddleCheckout();
+        } catch {
+          // Keep the server-side reservation if its checkout could not be safely canceled.
+        }
+      }
     } finally {
       setIsCheckingOut(false);
     }
@@ -140,7 +168,25 @@ export const BillingTab: React.FC = () => {
         </div>
       </div>
 
-      {successToast && <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold">{successToast}</div>}
+      {successToast && <div role="status" aria-live="polite" className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold">{successToast}</div>}
+      {checkoutReservation && <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+        <span>A previous checkout is still open. Close and cancel it to safely choose a different plan.</span>
+        <button type="button" onClick={async () => {
+          if (!supabase) return;
+          setIsCheckingOut(true);
+          try {
+            await releasePaddleCheckout();
+            setCheckoutReservation(false);
+            setSuccessToast('Previous checkout closed. Choose any plan to try again.');
+          } catch (error) {
+            setSuccessToast(error instanceof Error ? error.message : 'Could not close the previous checkout.');
+          } finally {
+            setIsCheckingOut(false);
+          }
+        }} disabled={isCheckingOut} className="shrink-0 rounded-lg bg-amber-900 px-3 py-2 font-bold text-white disabled:opacity-60">
+          {isCheckingOut ? 'Closing checkout…' : 'Close previous checkout'}
+        </button>
+      </div>}
 
       <div className="flex flex-col items-center gap-2 pt-2">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Choose your billing cycle</p>
@@ -169,7 +215,7 @@ export const BillingTab: React.FC = () => {
                   {plan.features.map((feature) => <li key={feature.label} className={`flex items-start gap-2 ${feature.included ? '' : 'text-slate-400'}`}>{feature.included ? <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <X className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />}<span className={feature.included ? '' : 'line-through'}>{feature.label}</span></li>)}
                 </ul>
               </div>
-              <div className="p-5 pt-0 mt-auto"><button onClick={() => handleSelectPlan(plan.id)} disabled={isCurrent || isCheckingOut || isLoadingPlan} className={`w-full py-3 px-4 rounded-xl text-xs font-extrabold transition text-center disabled:cursor-default ${isCurrent ? 'bg-slate-100 text-slate-400' : plan.popular ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>{isLoadingPlan ? 'Checking plan…' : isCurrent ? 'Current Plan' : isCheckingOut ? 'Opening checkout…' : plan.cta}</button></div>
+              <div className="p-5 pt-0 mt-auto"><button onClick={() => handleSelectPlan(plan.id)} disabled={isCurrent || isCheckingOut || checkoutOpen || isLoadingPlan} className={`w-full py-3 px-4 rounded-xl text-xs font-extrabold transition text-center disabled:cursor-default ${isCurrent ? 'bg-slate-100 text-slate-400' : plan.popular ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-lg shadow-indigo-200' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}>{isLoadingPlan ? 'Checking plan…' : isCurrent ? 'Current Plan' : isCheckingOut || checkoutOpen ? 'Checkout open…' : plan.cta}</button></div>
             </div>
           );
         })}
