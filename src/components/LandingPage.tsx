@@ -137,11 +137,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-9 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-lg shadow-sm shadow-indigo-300">
-              Q
-            </div>
+            <img src="/queueturn-icon.svg" alt="" className="h-10 w-10 rounded-xl shadow-sm" />
             <div>
-              <span className="font-extrabold text-xl text-slate-900 tracking-tight">Queue Turn</span>
+              <span className="font-extrabold text-xl tracking-tight"><span className="text-slate-900">Queue</span><span className="bg-gradient-to-r from-sky-500 via-violet-600 to-orange-500 bg-clip-text text-transparent">Turn</span></span>
             </div>
           </div>
 
@@ -438,11 +436,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <footer className="bg-white border-t border-slate-200 py-12 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 space-y-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base">
-                Q
-              </div>
-              <span className="font-black text-lg text-slate-900">Queue Turn</span>
+            <div className="flex items-center space-x-2.5">
+              <img src="/queueturn-icon.svg" alt="QueueTurn" className="h-9 w-9 rounded-xl" />
+              <span className="font-black text-lg tracking-tight"><span className="text-slate-900">Queue</span><span className="bg-gradient-to-r from-sky-500 via-violet-600 to-orange-500 bg-clip-text text-transparent">Turn</span></span>
             </div>
             <p className="text-xs text-slate-500 max-w-sm">
               Simple digital visitor queues for clinics, salons, auto shops, and local businesses. Let customers wait comfortably without standing in line.
