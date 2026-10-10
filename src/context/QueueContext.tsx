@@ -110,20 +110,53 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: businesses, error: businessError } = await supabase
       .from('businesses').select('*').eq('owner_id', session.user.id);
     if (!isLatestRun()) return false;
-    if (businessError || !businesses?.length) {
-      // A signed-in owner must never see the demo queue as if it were real business data.
-      const emptyCloudState: AppState = {
-        businesses: [], currentBusinessId: '', queues: [], counters: [], entries: [],
-        profiles: [], currentUser: {
-          id: session.user.id,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Owner',
-          email: session.user.email || '', businessId: '', role: 'owner', createdAt: session.user.created_at
-        }
-      };
-      setState(emptyCloudState);
-      saveStoredState(emptyCloudState);
-      setActiveQueueIdState('');
+    if (businessError) {
+      console.error('Could not load the signed-in owner business:', businessError);
       return false;
+    }
+
+    // Google OAuth can create an authenticated user without passing through the
+    // email/password onboarding form. Provision a usable first business and queue
+    // so new Google users do not land on an empty dashboard.
+    if (!businesses?.length) {
+      const ownerName = String(
+        session.user.user_metadata?.full_name ||
+        session.user.user_metadata?.name ||
+        session.user.email?.split('@')[0] ||
+        'Owner'
+      );
+      const businessName = String(session.user.user_metadata?.business_name || 'My Business');
+      const businessSlug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'my-business';
+      const { data: createdBusiness, error: createBusinessError } = await supabase
+        .from('businesses')
+        .insert({ owner_id: session.user.id, name: businessName })
+        .select('*')
+        .single();
+      if (!isLatestRun()) return false;
+      if (createBusinessError || !createdBusiness) {
+        console.error('Could not create the first business for this account:', createBusinessError);
+        return false;
+      }
+
+      const { data: createdQueue, error: createQueueError } = await supabase
+        .from('queues')
+        .insert({
+          business_id: createdBusiness.id,
+          name: 'General Service',
+          slug: `${businessSlug}-general-service`,
+          prefix: 'A',
+          next_number: 1,
+          estimated_minutes_per_person: 10
+        })
+        .select('*')
+        .single();
+      if (!isLatestRun()) return false;
+      if (createQueueError || !createdQueue) {
+        console.error('Business created, but the first queue could not be created:', createQueueError);
+        return false;
+      }
+      // Reload from the database using the normal mapping path below.
+      return refreshCloudState();
     }
 
     const businessIds = businesses.map((b:any) => b.id);
