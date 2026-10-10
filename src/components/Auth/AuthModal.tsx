@@ -33,6 +33,15 @@ interface AuthModalProps {
   initialMode?: 'login' | 'signup';
 }
 
+const GoogleLogo: React.FC = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" role="img">
+    <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.2-2.27H12v4.51h6.44a5.5 5.5 0 0 1-2.39 3.61v2.93h3.87c2.27-2.09 3.57-5.17 3.57-8.78Z"/>
+    <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.87-2.97c-1.07.72-2.44 1.15-4.08 1.15-3.13 0-5.78-2.11-6.73-4.96H1.27v3.06A12 12 0 0 0 12 24Z"/>
+    <path fill="#FBBC05" d="M5.27 14.31a7.2 7.2 0 0 1 0-4.62V6.63H1.27a12 12 0 0 0 0 10.74l4-3.06Z"/>
+    <path fill="#EA4335" d="M12 4.73c1.77 0 3.36.61 4.61 1.8l3.46-3.46A11.6 11.6 0 0 0 12 0 12 12 0 0 0 1.27 6.63l4 3.06C6.22 6.84 8.87 4.73 12 4.73Z"/>
+  </svg>
+);
+
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
@@ -349,7 +358,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 disabled={busy}
                 className="w-full flex items-center justify-center gap-3 py-3 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 rounded-xl font-semibold text-sm transition"
               >
-                <span aria-hidden="true" className="font-black text-base"><span className="text-blue-600">G</span></span>
+                <GoogleLogo />
                 {busy ? 'Connecting to Google…' : 'Continue with Google'}
               </button>
 
@@ -424,7 +433,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   disabled={busy}
                   className="w-full flex items-center justify-center gap-3 py-3 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 rounded-xl font-semibold text-sm transition"
                 >
-                  <span aria-hidden="true" className="font-black text-base"><span className="text-blue-600">G</span></span>
+                  <GoogleLogo />
                   {busy ? 'Connecting to Google…' : 'Continue with Google'}
                 </button>
                 <button type="button" disabled={busy} onClick={handleResendConfirmation} className="w-full py-2 text-indigo-700 hover:underline disabled:opacity-60 text-xs font-semibold">
