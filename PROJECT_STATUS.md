@@ -12,9 +12,9 @@
 - Complete an authenticated Sandbox checkout test and redirect verification.
 
 ## Next
-- Confirm Sandbox localized prices and checkout overlay open/close on the deployed preview.
 - Complete a Sandbox payment and verify `/welcome` redirect using a separate Sandbox customer account; do not disrupt the existing Starter subscription.
 - Confirm the Sandbox catalog product currently mapped to Advanced is named appropriately.
+- Once Sandbox validation is complete, configure Paddle Live credentials and approved domains before the go-live step.
 
 ## Open questions
 - The six existing Paddle price IDs use the internal `unlimited` key and are displayed as “Advanced” in QueueTurn. Paddle checkout uses the product name in its catalog, so rename that Sandbox product to “Advanced” in Paddle if it currently says “Unlimited.”
@@ -30,5 +30,5 @@
 - `npm run build` — passed; existing Vite `__dirname` configuration warning remains.
 - `npm test` — passed (18 tests).
 - Vercel preview — ready; browser verification confirmed all three localized monthly and yearly Paddle totals render in India.
-- Public Subscribe CTA correctly starts authentication, but Checkout overlay testing requires an authenticated customer. The test browser is unauthenticated and no payment was submitted.
+- Public Subscribe CTA starts the account signup flow. Checkout overlay testing requires an authenticated customer; the test browser is unauthenticated and no payment was submitted.
 - Sandbox checkout completion has not yet been exercised; an existing active subscription must not be changed solely for test verification.
