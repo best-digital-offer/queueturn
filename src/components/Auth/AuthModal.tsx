@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   X, 
   Building2, 
@@ -62,6 +62,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const { createBusiness, createQueue } = useQueue();
   const [mode, setMode] = useState<'login' | 'signup' | 'onboarding' | 'success'>(initialMode);
+
+  useEffect(() => {
+    if (isOpen) setMode(initialMode);
+  }, [isOpen, initialMode]);
 
   // Signup fields
   const [businessName, setBusinessName] = useState('');

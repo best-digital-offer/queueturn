@@ -9,7 +9,7 @@
 - Sandbox-only configuration fails closed; `.env.example` documents the required variables and Dashboard payment-link setup.
 
 ## In progress
-- Validate the branch and Sandbox preview checkout, then prepare the Vercel deployment.
+- Complete an authenticated Sandbox checkout test and redirect verification.
 
 ## Next
 - Confirm Sandbox localized prices and checkout overlay open/close on the deployed preview.
@@ -29,4 +29,6 @@
 - `npm run lint` — passed.
 - `npm run build` — passed; existing Vite `__dirname` configuration warning remains.
 - `npm test` — pending final rerun.
+- Vercel preview — ready; browser verification confirmed all three localized monthly and yearly Paddle totals render in India.
+- Public Subscribe CTA correctly starts authentication, but Checkout overlay testing requires an authenticated customer. The test browser is unauthenticated and no payment was submitted.
 - Sandbox checkout completion has not yet been exercised; an existing active subscription must not be changed solely for test verification.
