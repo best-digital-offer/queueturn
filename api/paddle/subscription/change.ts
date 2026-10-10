@@ -62,11 +62,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const paddleApiKey = process.env.PADDLE_API_KEY;
+  const paddleApiKey = process.env.PADDLE_API_KEY || '';
+  const environment = process.env.PADDLE_ENVIRONMENT;
+  const sandbox = environment === 'sandbox';
+  const live = environment === 'live';
   if (!supabaseUrl || !anonKey || !serviceRoleKey
-      || process.env.PADDLE_ENVIRONMENT !== 'sandbox' || !paddleApiKey?.startsWith('pdl_sdbx_')) {
-    return res.status(503).json({ error: 'Paddle Sandbox subscription changes are not configured.' });
+      || !(sandbox || live)
+      || !(sandbox ? paddleApiKey.startsWith('pdl_sdbx_') : paddleApiKey.startsWith('pdl_live_'))) {
+    return res.status(503).json({ error: 'Paddle subscription changes are not configured for the selected environment.' });
   }
+  const paddleApiBase = sandbox ? 'https://sandbox-api.paddle.com' : 'https://api.paddle.com';
 
   const supabase = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -122,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let currentResponse: Response;
   try {
-    currentResponse = await fetch(`https://sandbox-api.paddle.com/subscriptions/${subscriptionRow.paddle_subscription_id}`, {
+    currentResponse = await fetch(`${paddleApiBase}/subscriptions/${subscriptionRow.paddle_subscription_id}`, {
       headers: { Authorization: `Bearer ${paddleApiKey}`, 'Paddle-Version': '1' },
       signal: AbortSignal.timeout(10_000),
     });
@@ -131,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const currentPayload = await currentResponse.json().catch(() => ({}));
   if (!currentResponse.ok) {
-    console.error('Paddle Sandbox subscription lookup failed', currentResponse.status, paddleError(currentPayload));
+    console.error('Paddle subscription lookup failed', currentResponse.status, paddleError(currentPayload));
     return res.status(502).json({ error: 'Paddle could not load your subscription. Please try again.' });
   }
 
@@ -159,7 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const itemPriceId = item?.price?.id || item?.price_id;
     return priceMappings.some((mapping) => process.env[mapping.env] === itemPriceId);
   });
-  if (!targetItem) return res.status(409).json({ error: 'Your current plan price could not be matched to the Sandbox catalog.' });
+  if (!targetItem) return res.status(409).json({ error: 'Your current plan price could not be matched to the selected Paddle catalog.' });
   const currentItemPriceId = targetItem?.price?.id || targetItem?.price_id;
   const items = currentSubscription.items.map((item: any) => {
     const itemPriceId = item?.price?.id || item?.price_id;
@@ -176,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let previewResponse: Response;
   try {
-    previewResponse = await fetch(`https://sandbox-api.paddle.com/subscriptions/${subscriptionRow.paddle_subscription_id}/preview`, {
+    previewResponse = await fetch(`${paddleApiBase}/subscriptions/${subscriptionRow.paddle_subscription_id}/preview`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${paddleApiKey}`,
@@ -191,7 +196,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const previewPayload = await previewResponse.json().catch(() => ({}));
   if (!previewResponse.ok) {
-    console.error('Paddle Sandbox subscription preview failed', previewResponse.status, paddleError(previewPayload));
+    console.error('Paddle subscription preview failed', previewResponse.status, paddleError(previewPayload));
     return res.status(502).json({ error: 'Paddle could not calculate this subscription change. Check the subscription status and try again.' });
   }
 
@@ -220,7 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let updateResponse: Response;
   try {
-    updateResponse = await fetch(`https://sandbox-api.paddle.com/subscriptions/${subscriptionRow.paddle_subscription_id}`, {
+    updateResponse = await fetch(`${paddleApiBase}/subscriptions/${subscriptionRow.paddle_subscription_id}`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${paddleApiKey}`,
@@ -235,7 +240,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const updatePayload = await updateResponse.json().catch(() => ({}));
   if (!updateResponse.ok) {
-    console.error('Paddle Sandbox subscription update failed', updateResponse.status, paddleError(updatePayload));
+    console.error('Paddle subscription update failed', updateResponse.status, paddleError(updatePayload));
     return res.status(502).json({ error: 'Paddle could not apply the subscription change. Your existing plan remains active.' });
   }
 
