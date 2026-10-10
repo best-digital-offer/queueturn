@@ -69,12 +69,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: `The ${plan} ${billingCycle} price is not configured.` });
   }
 
-  // This project is intentionally Sandbox-only. Fail closed if its configuration drifts.
+  const environment = process.env.PADDLE_ENVIRONMENT;
+  const clientToken = process.env.VITE_PADDLE_CLIENT_TOKEN || '';
+  const apiKey = process.env.PADDLE_API_KEY || '';
   const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET;
-  if (process.env.PADDLE_ENVIRONMENT !== 'sandbox'
-      || !process.env.VITE_PADDLE_CLIENT_TOKEN?.startsWith('test_')
+  const sandbox = environment === 'sandbox';
+  const live = environment === 'live';
+  if ((!sandbox && !live)
+      || !(sandbox ? clientToken.startsWith('test_') : clientToken.startsWith('live_'))
+      || !(sandbox ? apiKey.startsWith('pdl_sdbx_') : apiKey.startsWith('pdl_live_'))
       || !webhookSecret) {
-    return res.status(503).json({ error: 'Paddle Sandbox billing is not configured.' });
+    return res.status(503).json({ error: 'Paddle billing is not configured for the selected environment.' });
   }
 
   const reservation = await admin.rpc('reserve_paddle_checkout', {
