@@ -8,6 +8,7 @@ type BillingCycle = 'monthly' | 'annual';
 export const BillingTab: React.FC = () => {
   // The database subscription record is authoritative; never trust a browser-stored plan.
   const [currentPlan, setCurrentPlan] = useState<PlanId>('free');
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(true);
 
   useEffect(() => {
@@ -21,19 +22,25 @@ export const BillingTab: React.FC = () => {
       if (cancelled) return;
       if (!session?.user) {
         setCurrentPlan('free');
+        setCurrentStatus(null);
         setIsLoadingPlan(false);
         return;
       }
       const { data, error } = await supabase
         .from('billing_subscriptions')
-        .select('plan,status,updated_at')
+        .select('plan,status,updated_at,current_period_end,cancel_at_period_end')
         .eq('user_id', session.user.id)
-        .in('status', ['active', 'trialing'])
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (cancelled) return;
-      if (!error && data && ['starter', 'pro', 'unlimited'].includes(data.plan)) {
+      if (!error && data) {
+        setCurrentStatus(data.status);
+      } else {
+        setCurrentStatus(null);
+      }
+      if (!error && data && ['active', 'trialing'].includes(data.status)
+          && ['starter', 'pro', 'unlimited'].includes(data.plan)) {
         setCurrentPlan(data.plan as PlanId);
       } else {
         setCurrentPlan('free');
@@ -84,6 +91,10 @@ export const BillingTab: React.FC = () => {
   ];
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const statusLabel: Record<string, string> = {
+    active: 'Active', trialing: 'Trial period', pending: 'Payment pending',
+    past_due: 'Payment past due', paused: 'Paused', canceled: 'Canceled',
+  };
 
   const handleSelectPlan = async (planId: PlanId) => {
     if (planId === currentPlan || isCheckingOut) return;
@@ -124,6 +135,7 @@ export const BillingTab: React.FC = () => {
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Subscription & Billing</h1>
           <p className="text-sm text-slate-500 mt-0.5">Simple, transparent plans for your queue operations. Prices are in USD.</p>
+          {currentStatus && <p aria-live="polite" className="mt-1 text-xs font-semibold text-slate-600">Subscription status: {statusLabel[currentStatus] || currentStatus}</p>}
         </div>
       </div>
 

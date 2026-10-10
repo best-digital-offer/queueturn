@@ -33,8 +33,9 @@ export async function joinCloudQueue(queueId:string,name?:string,phone?:string) 
 }
 
 export async function getCloudQueueStats(queueId:string) {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc('get_public_queue_stats', { p_queue_id: queueId });
+  const db = supabase;
+  if (!db) return null;
+  const { data, error } = await db.rpc('get_public_queue_stats', { p_queue_id: queueId });
   if (error) {
     console.error('Could not refresh public queue stats:', error);
     return null;
@@ -50,10 +51,11 @@ export async function getCloudVisitor(visitorId:string, token:string) {
 }
 
 export function subscribeToCloudQueue(queueId:string, callback:()=>void) {
-  if (!supabase) return () => {};
-  const channel=supabase.channel(`queue-db:${queueId}`)
+  const db = supabase;
+  if (!db) return () => {};
+  const channel=db.channel(`queue-db:${queueId}`)
     .on('postgres_changes',{event:'*',schema:'public',table:'queues',filter:`id=eq.${queueId}`},callback)
     .on('postgres_changes',{event:'*',schema:'public',table:'queue_visitors',filter:`queue_id=eq.${queueId}`},callback)
     .subscribe();
-  return ()=>{ supabase.removeChannel(channel); };
+  return ()=>{ db.removeChannel(channel); };
 }

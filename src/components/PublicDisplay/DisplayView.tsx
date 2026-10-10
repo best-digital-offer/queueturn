@@ -44,7 +44,8 @@ export const DisplayView: React.FC<DisplayViewProps> = ({
   // Public TV screens can run on a separate device without an owner login.
   // Poll the public queue endpoints so they do not depend on stale local context.
   useEffect(() => {
-    if (!supabase || !queueSlug) return;
+    const db = supabase;
+    if (!db || !queueSlug) return;
     let alive = true;
     const refresh = async () => {
       const found = await findPublicQueue(queueSlug, '');
@@ -53,7 +54,7 @@ export const DisplayView: React.FC<DisplayViewProps> = ({
       const stats = await getCloudQueueStats(found.queue.id);
       if (!alive || !stats) return;
       setPublicStats(stats);
-      const { data, error } = await supabase.rpc('get_public_waiting_numbers', { p_queue_id: found.queue.id });
+      const { data, error } = await db.rpc('get_public_waiting_numbers', { p_queue_id: found.queue.id });
       if (!error && alive && Array.isArray(data)) {
         setPublicWaiting(data.slice(0, 5).map((v: any) => ({
           id: v.visitor_id || `${found.queue.id}-${v.queue_number}`,
