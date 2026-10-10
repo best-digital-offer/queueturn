@@ -80,7 +80,6 @@ export const BillingTab: React.FC = () => {
   }, []);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutReservation, setCheckoutReservation] = useState(false);
   const [planChangePreview, setPlanChangePreview] = useState<PlanChangePreview | null>(null);
   const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false);
   const isPaidSubscription = !!paddleSubscriptionId
@@ -141,16 +140,13 @@ export const BillingTab: React.FC = () => {
         onClosed: () => {
           setSuccessToast('Checkout closed. You can choose any plan now.');
           setCheckoutOpen(false);
-          setCheckoutReservation(false);
         },
         onCloseError: (closeError) => {
-          setCheckoutReservation(true);
           setSuccessToast(closeError.message);
           setCheckoutOpen(false);
         },
         onCompleted: () => setSuccessToast('Payment submitted. Paddle is confirming your subscription.'),
       });
-      setCheckoutReservation(false);
       setCheckoutOpen(true);
     } catch (error) {
       setSuccessToast(error instanceof Error ? error.message : 'Could not start checkout.');
@@ -223,25 +219,6 @@ export const BillingTab: React.FC = () => {
       </div>
 
       {successToast && <div role="status" aria-live="polite" className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold">{successToast}</div>}
-      {checkoutReservation && <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between">
-        <span>A previous checkout is still open. Close and cancel it to safely choose a different plan.</span>
-        <button type="button" onClick={async () => {
-          if (!supabase) return;
-          setIsCheckingOut(true);
-          try {
-            await releasePaddleCheckout();
-            setCheckoutReservation(false);
-            setSuccessToast('Previous checkout closed. Choose any plan to try again.');
-          } catch (error) {
-            setSuccessToast(error instanceof Error ? error.message : 'Could not close the previous checkout.');
-          } finally {
-            setIsCheckingOut(false);
-          }
-        }} disabled={isCheckingOut} className="shrink-0 rounded-lg bg-amber-900 px-3 py-2 font-bold text-white disabled:opacity-60">
-          {isCheckingOut ? 'Closing checkout…' : 'Close previous checkout'}
-        </button>
-      </div>}
-
       <PaddlePricingTable
         currentPlan={currentPlan}
         currentBillingCycle={currentBillingCycle}
