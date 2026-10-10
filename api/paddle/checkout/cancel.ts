@@ -108,13 +108,22 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const { data: released, error: releaseError } = await admin.rpc('release_paddle_checkout', { p_user_id: user.id });
+  // Release the reservation directly through the service-role client. Calling the
+  // overloaded SQL RPC here can fail when PostgREST's function schema cache is stale.
+  // Only release this user's pending checkout rows with no subscription attached.
+  const { data: releasedRows, error: releaseError } = await admin
+    .from('billing_subscriptions')
+    .update({ status: 'canceled', updated_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+    .is('paddle_subscription_id', null)
+    .select('id');
   if (releaseError) {
     console.error('Could not release Paddle checkout reservation', releaseError.code || 'unknown');
     return res.status(503).json({ error: 'The previous checkout was closed, but the reservation could not be cleared. Try again.' });
   }
 
-  return res.status(200).json({ released: Boolean(released) });
+  return res.status(200).json({ released: Boolean(releasedRows?.length) });
 }
 
 
