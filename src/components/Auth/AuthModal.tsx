@@ -69,6 +69,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleGoogleAuth = async () => {
+    if (!supabase) {
+      setAuthMessage('Authentication service is unavailable. Please try again later.');
+      return;
+    }
+    setBusy(true);
+    setAuthMessage('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: new URL('/?view=dashboard', window.location.origin).toString(),
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : 'Unable to continue with Google. Please try again.');
+      setBusy(false);
+    }
+  };
+
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     setAuthMessage('');
@@ -317,6 +338,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </form>
 
+              <div className="flex items-center gap-3 text-xs text-slate-400">
+                <span className="h-px flex-1 bg-slate-200" />
+                <span>OR</span>
+                <span className="h-px flex-1 bg-slate-200" />
+              </div>
+              <button
+                type="button"
+                onClick={handleGoogleAuth}
+                disabled={busy}
+                className="w-full flex items-center justify-center gap-3 py-3 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 rounded-xl font-semibold text-sm transition"
+              >
+                <span aria-hidden="true" className="font-black text-base"><span className="text-blue-600">G</span></span>
+                {busy ? 'Connecting to Google…' : 'Continue with Google'}
+              </button>
+
               <div className="pt-2 text-center text-xs text-slate-500">
                 Already have an account?{' '}
                 <button
@@ -376,6 +412,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 transition"
                 >
                   {busy ? 'Please wait…' : 'Sign In to Dashboard'}
+                </button>
+                <div className="flex items-center gap-3 text-xs text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  <span>OR</span>
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGoogleAuth}
+                  disabled={busy}
+                  className="w-full flex items-center justify-center gap-3 py-3 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 rounded-xl font-semibold text-sm transition"
+                >
+                  <span aria-hidden="true" className="font-black text-base"><span className="text-blue-600">G</span></span>
+                  {busy ? 'Connecting to Google…' : 'Continue with Google'}
                 </button>
                 <button type="button" disabled={busy} onClick={handleResendConfirmation} className="w-full py-2 text-indigo-700 hover:underline disabled:opacity-60 text-xs font-semibold">
                   Resend confirmation email
