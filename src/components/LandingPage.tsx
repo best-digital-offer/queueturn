@@ -24,13 +24,14 @@ import {
 } from 'lucide-react';
 import { useQueue } from '../context/QueueContext';
 import { QrCodeCanvas } from './Common/QrCodeCanvas';
-
+import { PaddlePricingTable } from './Billing/PaddlePricingTable';
 interface LandingPageProps {
   onStartFree: () => void;
   onOpenDemoDashboard: () => void;
   onOpenDemoCustomer: () => void;
   onOpenDemoDisplay: () => void;
   onSelectIndustry: (slug: string) => void;
+  onSubscribe: (plan: 'starter' | 'pro' | 'unlimited', cycle: 'monthly' | 'annual') => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -39,13 +40,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenDemoCustomer,
   onOpenDemoDisplay,
   onSelectIndustry,
+  onSubscribe,
 }) => {
   const { state, callNext } = useQueue();
   const [mockServing, setMockServing] = useState('A23');
   const [mockAhead, setMockAhead] = useState(3);
   const [mockNextInLine, setMockNextInLine] = useState(['A24', 'A25', 'A26', 'A27']);
   const [isAdvancing, setIsAdvancing] = useState(false);
-  const [landingBillingCycle, setLandingBillingCycle] = useState<'monthly' | 'annual'>('monthly');
 
   // Interactive Hero Widget Simulator
   const handleHeroNextCustomer = () => {
@@ -427,117 +428,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-2 mb-7">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Choose billing cycle</p>
-          <div role="tablist" aria-label="Pricing billing cycle" className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 shadow-sm">
-            <button type="button" role="tab" aria-selected={landingBillingCycle === "monthly"} onClick={() => setLandingBillingCycle("monthly")} className={landingBillingCycle === "monthly" ? "rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-indigo-700 shadow-sm" : "rounded-lg px-5 py-2.5 text-sm font-bold text-slate-500"}>Monthly</button>
-            <button type="button" role="tab" aria-selected={landingBillingCycle === "annual"} onClick={() => setLandingBillingCycle("annual")} className={landingBillingCycle === "annual" ? "rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-indigo-700 shadow-sm" : "rounded-lg px-5 py-2.5 text-sm font-bold text-slate-500"}>Annual <span className="ml-1 text-[10px] font-extrabold text-emerald-600">SAVE ~20%</span></button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Free */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div>
-              <h3 className="font-bold text-lg text-slate-900">Free</h3>
-              <p className="text-xs text-slate-500 mt-1">For single-chair testing</p>
-              <div className="my-4 text-3xl font-extrabold font-mono-numbers text-slate-900">
-                $0<span className="text-xs font-normal text-slate-500">/mo</span>
-              </div>
-              <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 7 Active Queues/month</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 50 visitors/month</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> QR Code generator</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Basic dashboard</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Public queue page</li>
-              </ul>
-            </div>
-            <button
-              onClick={onStartFree}
-              className="mt-6 w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition"
-            >
-              Start Free
-            </button>
-          </div>
-
-          {/* Starter */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div>
-              <h3 className="font-bold text-lg text-slate-900">Starter</h3>
-              <p className="text-xs text-slate-500 mt-1">For neighborhood shops</p>
-              <div className="my-4 text-3xl font-extrabold font-mono-numbers text-slate-900">
-                ${landingBillingCycle === 'monthly' ? 19 : 182}<span className="text-xs font-normal text-slate-500">{landingBillingCycle === 'monthly' ? '/mo' : '/year'}</span>
-              </div>
-              <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> {landingBillingCycle === 'monthly' ? '30 Active Queues/month' : '75 Active Queues/month'}</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 1,000 visitors/month</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited staff logins</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Custom queue page</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> TV Display Mode</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Analytics</li>
-              </ul>
-            </div>
-            <button
-              onClick={onStartFree}
-              className="mt-6 w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition"
-            >
-              Start Starter
-            </button>
-          </div>
-
-          {/* Pro (Popular) */}
-          <div className="bg-white rounded-3xl p-6 border-2 border-indigo-600 shadow-lg shadow-indigo-100 flex flex-col justify-between relative">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-full">
-              Most Popular: Pro
-            </span>
-            <div>
-              <h3 className="font-bold text-lg text-slate-900">Pro</h3>
-              <p className="text-xs text-slate-500 mt-1">For busy clinics & offices</p>
-              <div className="my-4 text-3xl font-extrabold font-mono-numbers text-slate-900">
-                ${landingBillingCycle === 'monthly' ? 35 : 336}<span className="text-xs font-normal text-slate-500">{landingBillingCycle === 'monthly' ? '/mo' : '/year'}</span>
-              </div>
-              <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> {landingBillingCycle === 'monthly' ? '100 Active Queues/month' : '150 Active Queues/month'}</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited visitors</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Multiple counters</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> 5,000 visitors/month</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Advanced analytics</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Custom branding</li>
-              </ul>
-            </div>
-            <button
-              onClick={onStartFree}
-              className="mt-6 w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 shadow-sm transition"
-            >
-              Start Pro
-            </button>
-          </div>
-
-          {/* Unlimited */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div>
-              <h3 className="font-bold text-lg text-slate-900">Unlimited</h3>
-              <p className="text-xs text-slate-500 mt-1">For operations needing unlimited queues and visitors</p>
-              <div className="my-4 text-3xl font-extrabold font-mono-numbers text-slate-900">
-                ${landingBillingCycle === 'monthly' ? 50 : 480}<span className="text-xs font-normal text-slate-500">{landingBillingCycle === 'monthly' ? '/mo' : '/year'}</span>
-              </div>
-              <ul className="space-y-2 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited queues</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Unlimited visitors</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Customer list & CSV export</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Advanced analytics</li>
-                <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-indigo-600" /> Multiple service counters</li>
-              </ul>
-            </div>
-            <button
-              onClick={() => { window.location.href = '/?page=contact'; }}
-              className="mt-6 w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition"
-            >
-              Choose Unlimited
-            </button>
-          </div>
-        </div>
-      </section>
+        <PaddlePricingTable onSubscribe={onSubscribe} />
+        <div className="mt-8 text-center">
+          <p className="text-sm text-slate-500">Looking for the free plan?</p>
+          <button onClick={onStartFree} className="mt-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">Start Free</button>
+        </div>      </section>
 
       {/* FOOTER */}
       <footer className="bg-white border-t border-slate-200 py-12 px-4 sm:px-6">

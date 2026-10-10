@@ -6,6 +6,7 @@ process.env.SUPABASE_URL = 'https://supabase.test';
 process.env.SUPABASE_ANON_KEY = 'test-anon-key';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
 process.env.PADDLE_ENVIRONMENT = 'sandbox';
+process.env.VITE_PADDLE_CLIENT_TOKEN = 'test_client_token_for_unit_tests';
 process.env.PADDLE_API_KEY = 'pdl_sdbx_apikey_test';
 process.env.PADDLE_WEBHOOK_SECRET = 'test-notification-secret';
 process.env.PADDLE_PRICE_STARTER_MONTHLY = 'pri_01m4j58xsfkp7bh4n9sdr53vja';
@@ -55,6 +56,9 @@ beforeEach(() => {
     if (url.includes('/rest/v1/rpc/reserve_paddle_checkout')) {
       return new Response(JSON.stringify(reservationResponse), { status: 200 });
     }
+    if (url.includes('/rest/v1/billing_subscriptions?')) {
+      return new Response(JSON.stringify([{ user_id: '00000000-0000-4000-8000-000000000001' }]), { status: 200 });
+    }
     if (url.includes('/rest/v1/rpc/release_paddle_checkout')) {
       return new Response('true', { status: 200 });
     }
@@ -102,6 +106,17 @@ function makeWebhook(event: Record<string, unknown>, timestamp = Math.floor(Date
   return { req, raw };
 }
 
+function signedCustomData() {
+  const userId = '00000000-0000-4000-8000-000000000001';
+  const plan = 'starter';
+  const billingCycle = 'monthly';
+  const issuedAt = String(Math.floor(Date.now() / 1000));
+  const checkoutSignature = createHmac('sha256', process.env.PADDLE_WEBHOOK_SECRET!)
+    .update(`${userId}:${plan}:${billingCycle}:${issuedAt}`)
+    .digest('hex');
+  return { supabase_user_id: userId, plan, billing_cycle: billingCycle, checkout_issued_at: issuedAt, checkout_signature: checkoutSignature };
+}
+
 function subscriptionEvent(eventType: string, extraData: Record<string, unknown> = {}) {
   return {
     event_id: 'evt_01m4j58xh2w3meny8cfdeesn10',
@@ -112,7 +127,7 @@ function subscriptionEvent(eventType: string, extraData: Record<string, unknown>
       customer_id: 'ctm_01m4j58xh2w3meny8cfdeesn10',
       status: 'active',
       items: [{ price_id: process.env.PADDLE_PRICE_STARTER_MONTHLY }],
-      custom_data: { supabase_user_id: '00000000-0000-4000-8000-000000000001', plan: 'starter', billing_cycle: 'monthly' },
+      custom_data: signedCustomData(),
       ...extraData,
     },
   };
@@ -172,7 +187,7 @@ test('checkout blocks active subscriptions and repeated pending checkout attempt
   });
 });
 
-test('authenticated checkout selects the correct server-side Sandbox price for all six plan cycles', async () => {
+test('authenticated checkout returns the exact Sandbox price and signed account data for all six plan cycles', async () => {
   const cases = [
     ['starter', 'monthly', 'PADDLE_PRICE_STARTER_MONTHLY'],
     ['starter', 'annual', 'PADDLE_PRICE_STARTER_ANNUAL'],
@@ -184,13 +199,16 @@ test('authenticated checkout selects the correct server-side Sandbox price for a
   for (const [plan, billingCycle, priceVariable] of cases) {
     const res = makeResponse();
     await checkoutHandler({ method: 'POST', headers: { authorization: 'Bearer valid-token' }, body: { plan, billingCycle } }, res);
-    const paddleRequest = requests.filter(request => request.url === 'https://sandbox-api.paddle.com/transactions').at(-1);
     assert.equal(res.code, 200, `${plan} ${billingCycle}`);
-    assert.equal(JSON.parse(paddleRequest!.body).items[0].price_id, process.env[priceVariable]);
-    assert.equal(paddleRequest?.headers.get('authorization'), `Bearer ${process.env.PADDLE_API_KEY}`);
+    assert.equal((res.body as any).priceId, process.env[priceVariable]);
+    assert.equal((res.body as any).email, 'buyer@example.test');
+    assert.equal((res.body as any).customData.supabase_user_id, '00000000-0000-4000-8000-000000000001');
+    assert.equal((res.body as any).customData.plan, plan);
+    assert.equal((res.body as any).customData.billing_cycle, billingCycle);
+    assert.match((res.body as any).customData.checkout_signature, /^[a-f\d]{64}$/i);
     assert.ok(!JSON.stringify(res.body).includes(process.env.PADDLE_API_KEY!));
   }
-  assert.equal(createdTransaction, 6);
+  assert.equal(requests.filter((request) => request.url.startsWith('https://sandbox-api.paddle.com/')).length, 0);
   const reservationRequest = requests.find(request => request.url.includes('/rest/v1/rpc/reserve_paddle_checkout'));
   assert.equal(reservationRequest?.headers.get('authorization'), `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`);
 });
@@ -252,6 +270,22 @@ test('subscription activation is synchronized and failed processing remains retr
     assert.equal(res.code, 500);
     assert.ok(requests.some(r => r.url.includes('/rest/v1/paddle_webhook_events') && r.method === 'DELETE'));
   });
+});
+
+test('existing Paddle subscription events resolve the account from the stored subscription ID', async () => {
+  const event = subscriptionEvent('subscription.updated', {
+    custom_data: { supabase_user_id: '00000000-0000-4000-8000-000000000099', plan: 'starter', billing_cycle: 'monthly' },
+    items: [{ price_id: process.env.PADDLE_PRICE_PRO_ANNUAL }],
+  });
+  const { req } = makeWebhook(event);
+  const res = makeResponse();
+  await webhookHandler(req, res);
+  assert.equal(res.code, 200);
+  const syncRequest = requests.find((request) => request.url.includes('sync_paddle_subscription_event'));
+  const body = JSON.parse(syncRequest!.body);
+  assert.equal(body.p_user_id, '00000000-0000-4000-8000-000000000001');
+  assert.equal(body.p_plan, 'pro');
+  assert.equal(body.p_billing_cycle, 'annual');
 });
 
 test('subscription lifecycle events map canceled, past-due, paused, and resumed states', async () => {
