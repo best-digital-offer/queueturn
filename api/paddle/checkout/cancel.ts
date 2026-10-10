@@ -102,9 +102,25 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'Paddle did not confirm cancellation. The previous checkout is still reserved; try again shortly.' });
     }
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      console.error('Paddle checkout cancellation failed', response.status, payload?.error?.code || 'unknown');
-      return res.status(502).json({ error: 'Paddle could not close the previous checkout. It remains reserved to protect your account.' });
+      // Paddle can report an error when the transaction was already canceled by
+      // the customer closing the overlay. Treat an already-canceled transaction
+      // as success so the local reservation can always be released idempotently.
+      let statusVerifiedCanceled = false;
+      try {
+        const verifyResponse = await fetch(`${paddleApiBase}/transactions/${transactionId}`, {
+          headers: { Authorization: `Bearer ${paddleApiKey}`, 'Paddle-Version': '1' },
+          signal: AbortSignal.timeout(10_000),
+        });
+        const verifyPayload = await verifyResponse.json().catch(() => ({}));
+        statusVerifiedCanceled = verifyResponse.ok && verifyPayload?.data?.status === 'canceled';
+      } catch {
+        // Keep the reservation if Paddle cannot confirm its state.
+      }
+      if (!statusVerifiedCanceled) {
+        const payload = await response.json().catch(() => ({}));
+        console.error('Paddle checkout cancellation failed', response.status, payload?.error?.code || 'unknown');
+        return res.status(502).json({ error: 'Paddle could not confirm cancellation. Please try again shortly.' });
+      }
     }
   }
 
