@@ -139,13 +139,23 @@ function AppContent() {
 
   // After authentication, send users straight to their dashboard rather than the marketing home.
   useEffect(() => {
-    if (isSignedIn && currentView === 'landing' && !sessionStorage.getItem('queueturn-pending-checkout')) {
+    if (isSignedIn && currentView === 'landing' && window.location.hash !== '#pricing' && !sessionStorage.getItem('queueturn-pending-checkout')) {
       setCurrentView('dashboard');
       const url = new URL(window.location.href);
       url.searchParams.set('view', 'dashboard');
       window.history.replaceState({}, '', url.toString());
     }
   }, [isSignedIn, currentView]);
+
+  // Keep the public pricing section accessible to Paddle reviewers and visitors,
+  // including signed-in users whose normal homepage visit redirects to the dashboard.
+  useEffect(() => {
+    if (currentView !== 'landing' || typeof window === 'undefined' || window.location.hash !== '#pricing') return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('pricing')?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentView, isAuthenticated]);
 
   // A dashboard URL opened in a fresh browser must not silently show seeded demo data.
   // Ask the visitor to sign in, then load their own Supabase business and queues.
