@@ -191,23 +191,24 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [state.currentBusinessId, state.queues, activeQueueId]);
 
   useEffect(() => {
-    if (!supabase) return;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const db = supabase;
+    if (!db) return;
+    let channel: ReturnType<typeof db.channel> | null = null;
     const start = async () => {
       await refreshCloudState();
       // Subscribe even when the signed-in user has not created a business yet:
       // onboarding inserts must trigger a fresh cloud-state load.
-      channel = supabase.channel('queueturn-owner-sync')
+      channel = db.channel('queueturn-owner-sync')
         .on('postgres_changes',{event:'*',schema:'public',table:'businesses'},() => { refreshCloudState(); })
         .on('postgres_changes',{event:'*',schema:'public',table:'queues'},() => { refreshCloudState(); })
         .on('postgres_changes',{event:'*',schema:'public',table:'queue_visitors'},() => { refreshCloudState(); })
         .subscribe();
     };
     start();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => { refreshCloudState(); });
+    const { data: listener } = db.auth.onAuthStateChange(() => { refreshCloudState(); });
     return () => {
       listener.subscription.unsubscribe();
-      if (channel) supabase.removeChannel(channel);
+      if (channel) db.removeChannel(channel);
     };
   }, [refreshCloudState]);
 
@@ -725,7 +726,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // CUSTOMER JOIN QUEUE
   const joinQueue = useCallback(async (queueId: string, customerName?: string, customerPhone?: string): Promise<QueueEntry> => {
-    let createdEntry: QueueEntry | null = null;
+    const createdEntries: QueueEntry[] = [];
 
     updateStateAndPersist((prev) => {
       const queue = prev.queues.find((q) => q.id === queueId);
@@ -735,7 +736,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const displayNumber = queue.prefix ? `${queue.prefix}${seq}` : `${seq}`;
       const sessionId = 'sess_' + Math.random().toString(36).substring(2, 10);
 
-      createdEntry = {
+      const createdEntry: QueueEntry = {
         id: 'entry_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         queueId: queue.id,
         businessId: queue.businessId,
@@ -747,6 +748,7 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: 'waiting',
         joinedAt: new Date().toISOString(),
       };
+      createdEntries.push(createdEntry);
 
       const updatedQueues = prev.queues.map((q) => {
         if (q.id === queueId) {
@@ -762,8 +764,8 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
     });
 
-    if (!createdEntry) throw new Error('Failed to create entry');
-    const entry = createdEntry as QueueEntry;
+    const entry = createdEntries[createdEntries.length - 1];
+    if (!entry) throw new Error('Failed to create entry');
 
     // Save session locally for customer retention
     saveCustomerSession(queueId, entry.id);
@@ -806,21 +808,23 @@ export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       realtimeService.broadcast({ type: 'CUSTOMER_JOINED', queueId, data: entry });
       return entry;
     }
-    let createdEntry: QueueEntry | null = null;
+    const createdEntries: QueueEntry[] = [];
     updateStateAndPersist((prev) => {
       const queue = prev.queues.find((q) => q.id === queueId);
       if (!queue) throw new Error('Queue not found.');
       const seq = queue.nextNumber;
       const displayNumber = queue.prefix ? queue.prefix + seq : String(seq);
-      createdEntry = {
+      const createdEntry: QueueEntry = {
         id: 'entry_walkin_' + Date.now(), queueId, businessId: queue.businessId, displayNumber, sequenceNumber: seq,
         customerSessionId: 'walkin_' + Date.now(), customerName: name?.trim() || 'Walk-in Guest',
         customerPhone: phone?.trim(), notes: notes?.trim(), status: 'waiting', joinedAt: new Date().toISOString(),
       };
+      createdEntries.push(createdEntry);
       const updatedQueues = prev.queues.map((q) => q.id === queueId ? { ...q, nextNumber: q.nextNumber + 1 } : q);
       return { ...prev, queues: updatedQueues, entries: [...prev.entries, createdEntry] };
     });
-    const entry = createdEntry as QueueEntry;
+    const entry = createdEntries[createdEntries.length - 1];
+    if (!entry) throw new Error('Could not add walk-in customer. Please try again.');
     realtimeService.broadcast({ type: 'CUSTOMER_JOINED', queueId, data: entry });
     return entry;
   }, [state.queues, updateStateAndPersist, refreshCloudState]);

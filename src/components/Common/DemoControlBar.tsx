@@ -3,7 +3,7 @@ import { LayoutDashboard, Smartphone, Tv, Sparkles, RotateCcw, ExternalLink, Hom
 import { useQueue } from '../../context/QueueContext';
 
 interface DemoControlBarProps {
-  currentView: 'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo';
+  currentView: 'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo' | 'legal';
   onNavigate: (view: 'landing' | 'dashboard' | 'customer' | 'display' | 'admin' | 'seo', params?: string) => void;
   activeQueueSlug?: string;
   businessSlug?: string;

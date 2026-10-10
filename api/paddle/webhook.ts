@@ -1,9 +1,30 @@
-type VercelRequest = AsyncIterable<Buffer | string> & { method?: string; headers: Record<string, string | string[] | undefined> };
-type VercelResponse = { setHeader(name: string, value: string): void; status(code: number): VercelResponse; json(body: unknown): VercelResponse };
+import type { IncomingHttpHeaders } from 'node:http';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
+type VercelRequest = AsyncIterable<Buffer | string> & {
+  method?: string;
+  headers: IncomingHttpHeaders & Record<string, string | string[] | undefined>;
+};
+type VercelResponse = {
+  setHeader(name: string, value: string): void;
+  status(code: number): VercelResponse;
+  json(body: unknown): VercelResponse;
+};
+
 export const config = { api: { bodyParser: false } };
+
+const SIGNATURE_TOLERANCE_SECONDS = 5;
+const subscriptionEvents = new Set([
+  'subscription.created',
+  'subscription.activated',
+  'subscription.trialing',
+  'subscription.updated',
+  'subscription.past_due',
+  'subscription.paused',
+  'subscription.resumed',
+  'subscription.canceled',
+]);
 
 async function readRawBody(req: VercelRequest): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -11,25 +32,52 @@ async function readRawBody(req: VercelRequest): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-function validSignature(rawBody: Buffer, signatureHeader: string, secret: string): boolean {
+function validSignature(rawBody: Buffer, signatureHeader: string, secret: string, nowSeconds: number): boolean {
   const parts = Object.fromEntries(signatureHeader.split(';').map(part => {
     const index = part.indexOf('=');
     return index > 0 ? [part.slice(0, index).trim(), part.slice(index + 1).trim()] : ['', ''];
   }).filter(([key, value]) => key && value));
   const timestamp = parts.ts;
   const received = parts.h1;
-  if (!timestamp || !received || !/^\d+$/.test(timestamp)) return false;
-  const signedPayload = Buffer.from(`${timestamp}:${rawBody.toString('utf8')}`);
-  const expected = createHmac('sha256', secret).update(signedPayload).digest('hex');
-  const a = Buffer.from(expected, 'hex');
-  const b = Buffer.from(received, 'hex');
-  return a.length === b.length && timingSafeEqual(a, b);
+  if (!timestamp || !received || !/^\d+$/.test(timestamp) || !/^[a-f\d]{64}$/i.test(received)) return false;
+  if (Math.abs(nowSeconds - Number(timestamp)) > SIGNATURE_TOLERANCE_SECONDS) return false;
+
+  const expected = createHmac('sha256', secret)
+    .update(`${timestamp}:${rawBody.toString('utf8')}`)
+    .digest();
+  const provided = Buffer.from(received, 'hex');
+  return expected.length === provided.length && timingSafeEqual(expected, provided);
+}
+
+function validStatus(status: unknown): string | null {
+  return typeof status === 'string'
+    && ['pending', 'trialing', 'active', 'past_due', 'paused', 'canceled'].includes(status)
+    ? status
+    : null;
+}
+
+function statusForEvent(eventType: string, paddleStatus: unknown): string | null {
+  switch (eventType) {
+    case 'transaction.payment_failed':
+    case 'transaction.past_due': return 'past_due';
+    case 'subscription.activated': return 'active';
+    case 'subscription.trialing': return 'trialing';
+    case 'subscription.past_due': return 'past_due';
+    case 'subscription.paused': return 'paused';
+    case 'subscription.resumed': return 'active';
+    case 'subscription.canceled': return 'canceled';
+    case 'subscription.created':
+    case 'subscription.updated':
+      return validStatus(paddleStatus);
+    default:
+      return null;
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed.' });
   }
 
   const secret = process.env.PADDLE_WEBHOOK_SECRET;
@@ -41,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const rawBody = await readRawBody(req);
   const signature = req.headers['paddle-signature'];
-  if (typeof signature !== 'string' || !validSignature(rawBody, signature, secret)) {
+  if (typeof signature !== 'string' || !validSignature(rawBody, signature, secret, Math.floor(Date.now() / 1000))) {
     return res.status(401).json({ error: 'Invalid Paddle signature.' });
   }
 
@@ -51,76 +99,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const eventId = event?.event_id;
   const eventType = event?.event_type;
+  const occurredAt = event?.occurred_at;
+  const occurredAtMs = typeof occurredAt === 'string' ? Date.parse(occurredAt) : NaN;
   const data = event?.data;
-  if (typeof eventId !== 'string' || typeof eventType !== 'string' || !data) {
-    return res.status(400).json({ error: 'Missing event fields.' });
+  if (typeof eventId !== 'string' || typeof eventType !== 'string' || !data
+      || !Number.isFinite(occurredAtMs)) {
+    return res.status(400).json({ error: 'Missing or invalid Paddle event fields.' });
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { error: eventInsertError } = await supabase.from('paddle_webhook_events').insert({ event_id: eventId, event_type: eventType });
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error: eventInsertError } = await supabase
+    .from('paddle_webhook_events')
+    .insert({ event_id: eventId, event_type: eventType });
   if (eventInsertError?.code === '23505') return res.status(200).json({ received: true, duplicate: true });
   if (eventInsertError) {
-    console.error('Could not record Paddle event', eventInsertError.code);
+    console.error('Could not record Paddle event', eventInsertError.code || 'unknown');
     return res.status(500).json({ error: 'Could not record webhook event.' });
   }
 
   try {
-    const custom = data.custom_data || {};
-    const userId = custom.supabase_user_id;
-    const plan = custom.plan;
-    const billingCycle = custom.billing_cycle;
-    const subscriptionId = data.id && String(data.id).startsWith('sub_') ? data.id : data.subscription_id;
-    const transactionId = data.id && String(data.id).startsWith('txn_') ? data.id : data.transaction_id;
-    const customerId = data.customer_id;
-    const priceId = data.items?.[0]?.price?.id || data.items?.[0]?.price_id;
-    const statusMap: Record<string, string> = {
-      // `subscription.created` can be incomplete or trialing; trust Paddle's status.
-      'subscription.created': data.status || 'pending',
-      'subscription.activated': 'active',
-      'subscription.trialing': 'trialing',
-      'subscription.updated': data.status || 'pending',
-      'subscription.past_due': 'past_due',
-      'subscription.paused': 'paused',
-      'subscription.resumed': 'active',
-      'subscription.canceled': 'canceled'
-    };
+    const custom = data.custom_data && typeof data.custom_data === 'object' ? data.custom_data : {};
+    const plan = ['starter', 'pro', 'unlimited'].includes(custom.plan) ? custom.plan : null;
+    const billingCycle = ['monthly', 'annual'].includes(custom.billing_cycle) ? custom.billing_cycle : null;
+    const id = typeof data.id === 'string' ? data.id : '';
+    const subscriptionId = id.startsWith('sub_') ? id : data.subscription_id;
+    const transactionId = id.startsWith('txn_') ? id : data.transaction_id;
+    const customerId = typeof data.customer_id === 'string' ? data.customer_id : null;
+    const priceId = data.items?.[0]?.price?.id || data.items?.[0]?.price_id || null;
+    const eventStatus = statusForEvent(eventType, data.status);
 
-    // A completed transaction is not, by itself, proof that a subscription is active.
-    // Subscription lifecycle events are the source of truth for the subscription row.
-    if (eventType.startsWith('subscription.')) {
-      const resolvedUserId = userId || data.custom_data?.supabase_user_id;
-      if (!resolvedUserId) {
-        // Some subscription events omit custom_data; update an existing row by subscription ID.
-        if (subscriptionId) {
-          const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-          if (statusMap[eventType]) patch.status = statusMap[eventType];
-          if (eventType === 'subscription.canceled') patch.canceled_at = data.canceled_at || new Date().toISOString();
-          const { error } = await supabase.from('billing_subscriptions').update(patch).eq('paddle_subscription_id', subscriptionId);
-          if (error) throw error;
-        }
-      } else if (plan && ['starter', 'pro', 'unlimited'].includes(plan) && billingCycle && ['monthly', 'annual'].includes(billingCycle)) {
-        const row = {
-          user_id: resolvedUserId,
-          plan,
-          billing_cycle: billingCycle,
-          status: statusMap[eventType] || data.status || 'pending',
-          paddle_customer_id: customerId || null,
-          paddle_subscription_id: subscriptionId || null,
-          paddle_transaction_id: transactionId || null,
-          price_id: priceId || null,
-          current_period_start: data.current_billing_period?.starts_at || null,
-          current_period_end: data.current_billing_period?.ends_at || null,
-          cancel_at_period_end: Boolean(data.scheduled_change?.action === 'cancel'),
-          canceled_at: data.canceled_at || null,
-          updated_at: new Date().toISOString()
-        };
-        const { error } = await supabase.from('billing_subscriptions').upsert(row, { onConflict: 'paddle_subscription_id' });
+    // Transaction completion can create a pending subscription record and enrich
+    // metadata, but it never grants access. Subscription lifecycle events do that.
+    if (subscriptionEvents.has(eventType) || eventType === 'transaction.completed'
+        || eventType === 'transaction.payment_failed' || eventType === 'transaction.past_due') {
+      if (typeof subscriptionId === 'string' && subscriptionId.startsWith('sub_')) {
+        const { error } = await supabase.rpc('sync_paddle_subscription_event', {
+          p_user_id: typeof custom.supabase_user_id === 'string' ? custom.supabase_user_id : null,
+          p_plan: plan,
+          p_billing_cycle: billingCycle,
+          p_status: eventStatus,
+          p_paddle_customer_id: customerId,
+          p_paddle_subscription_id: subscriptionId,
+          p_paddle_transaction_id: typeof transactionId === 'string' && transactionId.startsWith('txn_') ? transactionId : null,
+          p_price_id: typeof priceId === 'string' && priceId.startsWith('pri_') ? priceId : null,
+          p_current_period_start: data.current_billing_period?.starts_at || null,
+          p_current_period_end: data.current_billing_period?.ends_at || null,
+          p_cancel_at_period_end: data.scheduled_change
+            ? data.scheduled_change.action === 'cancel'
+            : null,
+          p_canceled_at: data.canceled_at || null,
+          p_event_occurred_at: new Date(occurredAtMs).toISOString(),
+          p_event_id: eventId,
+        });
         if (error) throw error;
+      } else if (subscriptionEvents.has(eventType)) {
+        throw new Error('Subscription event is missing its subscription ID.');
       }
     }
+
     return res.status(200).json({ received: true });
   } catch (error) {
-    // Allow Paddle to retry: remove the idempotency row if processing did not complete.
+    // Remove the idempotency row when processing failed so Paddle's retry can run.
     await supabase.from('paddle_webhook_events').delete().eq('event_id', eventId);
     console.error('Paddle webhook processing failed', error instanceof Error ? error.message : 'unknown');
     return res.status(500).json({ error: 'Webhook processing failed; Paddle may retry.' });

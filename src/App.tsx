@@ -47,10 +47,8 @@ function AppContent() {
       const params = new URLSearchParams(window.location.search);
       const pageParam = params.get('page');
       if (pageParam) return 'legal';
-      const pageParam = params.get('page');
       const viewParam = params.get('view');
-      if (pageParam) setCurrentView('legal');
-      else if (viewParam === 'customer') return 'customer';
+      if (viewParam === 'customer') return 'customer';
       if (viewParam === 'display') return 'display';
       if (viewParam === 'dashboard') return 'dashboard';
       if (viewParam === 'admin') return 'admin';
