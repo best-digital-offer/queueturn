@@ -92,15 +92,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-900">
+    <div className="min-h-screen bg-[#F4F7FE] flex flex-col md:flex-row text-slate-900">
       {/* Mobile Top Header */}
       <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-9 z-40">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base">
-            Q
-          </div>
+          <img src="/queueturn-icon.svg" alt="QueueTurn" className="h-9 w-9 rounded-xl shadow-sm" />
           <div>
-            <span className="font-extrabold text-sm text-slate-900">Queue Turn</span>
+            <span className="font-extrabold text-sm tracking-tight"><span className="text-slate-900">Queue</span><span className="bg-gradient-to-r from-sky-500 via-violet-600 to-orange-500 bg-clip-text text-transparent">Turn</span></span>
             <span className="text-[10px] text-slate-500 block leading-none">{currentBusiness?.name}</span>
           </div>
         </div>
@@ -115,18 +113,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Sidebar Navigation */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200/90 flex flex-col justify-between transition-transform duration-200 ease-in-out md:static md:translate-x-0
+        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-100 shadow-[0_4px_24px_rgba(15,23,42,0.04)] flex flex-col justify-between transition-transform duration-200 ease-in-out md:static md:translate-x-0
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-5 flex flex-col h-full overflow-y-auto">
           {/* Logo & Business Selector */}
           <div className="pb-5 border-b border-slate-100">
             <div className="flex items-center space-x-2.5 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-lg shadow-sm shadow-indigo-200">
-                Q
-              </div>
+              <img src="/queueturn-icon.svg" alt="QueueTurn" className="h-10 w-10 rounded-xl shadow-sm" />
               <div>
-                <span className="font-extrabold text-lg text-slate-900 tracking-tight">Queue Turn</span>
+                <span className="font-extrabold text-lg tracking-tight"><span className="text-slate-900">Queue</span><span className="bg-gradient-to-r from-sky-500 via-violet-600 to-orange-500 bg-clip-text text-transparent">Turn</span></span>
                 <span className="block text-[10px] font-bold text-indigo-600 uppercase tracking-widest leading-none">
                   Business Portal
                 </span>
@@ -176,8 +172,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   onClick={() => handleTabChange(item.id)}
                   className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      ? 'bg-[#4318FF] text-white shadow-md shadow-indigo-200/70'
+                      : 'text-slate-600 hover:text-[#4318FF] hover:bg-[#F4F7FE]'
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />

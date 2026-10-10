@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 240" role="img" aria-labelledby="title">
+<title id="title">QueueTurn — Smart Queue Management</title>
+<defs>
+  <linearGradient id="word" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#0875FF"/><stop offset=".35" stop-color="#7929F5"/><stop offset=".67" stop-color="#F72B9B"/><stop offset="1" stop-color="#FF9700"/></linearGradient>
+</defs>
+<image href="/queueturn-icon.svg" x="0" y="0" width="220" height="220"/>
+<text x="248" y="132" font-family="Inter,Arial,sans-serif" font-size="112" font-weight="800" letter-spacing="-5" fill="#111B34">Queue</text>
+<text x="545" y="132" font-family="Inter,Arial,sans-serif" font-size="112" font-weight="800" letter-spacing="-5" fill="url(#word)">Turn</text>
+<text x="252" y="184" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="7" fill="#64748B">SMART QUEUE MANAGEMENT</text>
+</svg>
