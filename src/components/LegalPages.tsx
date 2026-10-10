@@ -17,7 +17,6 @@ const pageContent: Record<LegalPageKey, { title: string; intro: string; sections
     intro: 'Questions about QueueTurn, your account, or a subscription? Contact our support team.',
     sections: [
       { heading: 'Email support', body: 'Email: support@queueturn.com. Please include your registered email address and a short description of the issue. Do not email passwords or payment card details.' },
-      { heading: 'Phone', body: '' },
       { heading: 'Business address', body: 'N&N Digitals, Sree Hemadurga Towers, 207, 2nd Floor, A Block, Alwin Cross, Hyderabad 500059, India.' },
       { heading: 'Support hours', body: 'We will respond as soon as reasonably possible. Response times may vary on weekends and public holidays.' }
     ]
@@ -30,7 +29,7 @@ const pageContent: Record<LegalPageKey, { title: string; intro: string; sections
       { heading: 'Can staff manage queues from a dashboard?', body: 'Yes. Signed-in business users can manage queues from the QueueTurn dashboard, subject to the features available on their plan.' },
       { heading: 'Can I show the queue on a TV?', body: 'QueueTurn supports a public display view for showing queue information on a suitable screen.' },
       { heading: 'How do subscriptions work?', body: 'Paid plan availability and limits will be shown on the pricing page. Checkout and subscription activation are only effective once payment integration is enabled.' },
-      { heading: 'How can I get help?', body: 'Email support@queueturn.com or call .' }
+      { heading: 'How can I get help?', body: 'Email support@queueturn.com.' }
     ]
   },
   privacy: {
@@ -63,7 +62,7 @@ const pageContent: Record<LegalPageKey, { title: string; intro: string; sections
       { heading: 'Refund requests', body: 'Subscription fees are generally non-refundable for partially used billing periods, except where required by law or stated otherwise at checkout. If you believe you were charged incorrectly, charged twice, or cannot access a paid subscription, email support@queueturn.com within 14 days with your account email, transaction reference, date, and reason. Do not send full payment card details. We review requests individually and process approved refunds through the original payment provider.' },
       { heading: 'Duplicate or incorrect charges', body: 'Confirmed duplicate or incorrect charges will be reviewed promptly and, where appropriate, refunded through the original payment provider.' },
       { heading: 'Statutory rights and taxes', body: 'Nothing in this policy limits consumer rights that cannot legally be excluded. Any applicable taxes and refund treatment are subject to the terms shown at checkout and applicable law.' },
-      { heading: 'Support', body: 'Email support@queueturn.com or call .' }
+      { heading: 'Support', body: 'Email support@queueturn.com.' }
     ]
   }
 };
