@@ -244,6 +244,21 @@ function AppContent() {
         )}
       </div>
 
+      {/* Keep compliance and support links available inside the authenticated app as well as on public legal pages. */}
+      {(isSignedIn && currentView !== 'welcome' && currentView !== 'landing') || currentView === 'legal' ? (
+        <footer className="border-t border-slate-200 bg-white px-4 py-6 sm:px-6">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <p>© 2026 N&N Digitals. All rights reserved. <a className="ml-1 hover:text-indigo-600" href="mailto:support@queueturn.com">support@queueturn.com</a></p>
+            <nav aria-label="Legal and support links" className="flex flex-wrap gap-x-4 gap-y-2">
+              <a className="hover:text-indigo-600" href="/?page=terms">Terms of Service</a>
+              <a className="hover:text-indigo-600" href="/?page=privacy">Privacy Policy</a>
+              <a className="hover:text-indigo-600" href="/?page=refund">Refund & Cancellation</a>
+              <a className="hover:text-indigo-600" href="/?page=contact">Contact</a>
+            </nav>
+          </div>
+        </footer>
+      ) : null}
+
       {/* Authentication & Business Onboarding Modal */}
       <AuthModal
         isOpen={authModalOpen}
