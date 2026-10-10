@@ -96,11 +96,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* Mobile Top Header */}
       <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-9 z-40">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base">
-            Q
-          </div>
+          <img src="/queueturn-icon.svg" alt="QueueTurn" className="h-9 w-9 rounded-xl shadow-sm" />
           <div>
-            <span className="font-extrabold text-sm text-slate-900">Queue Turn</span>
+            <span className="font-extrabold text-sm tracking-tight"><span className="text-slate-900">Queue</span><span className="bg-gradient-to-r from-sky-500 via-violet-600 to-orange-500 bg-clip-text text-transparent">Turn</span></span>
             <span className="text-[10px] text-slate-500 block leading-none">{currentBusiness?.name}</span>
           </div>
         </div>
@@ -122,11 +120,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {/* Logo & Business Selector */}
           <div className="pb-5 border-b border-slate-100">
             <div className="flex items-center space-x-2.5 mb-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-extrabold text-lg shadow-sm shadow-indigo-200">
-                Q
-              </div>
+              <img src="/queueturn-icon.svg" alt="QueueTurn" className="h-10 w-10 rounded-xl shadow-sm" />
               <div>
-                <span className="font-extrabold text-lg text-slate-900 tracking-tight">Queue Turn</span>
+                <span className="font-extrabold text-lg tracking-tight"><span className="text-slate-900">Queue</span><span className="bg-gradient-to-r from-sky-500 via-violet-600 to-orange-500 bg-clip-text text-transparent">Turn</span></span>
                 <span className="block text-[10px] font-bold text-indigo-600 uppercase tracking-widest leading-none">
                   Business Portal
                 </span>
