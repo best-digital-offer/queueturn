@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 type PlanId = 'starter' | 'pro' | 'unlimited';
 type BillingCycle = 'monthly' | 'annual';
 export type PaddlePricingContext = {
-  environment: 'sandbox';
+  environment: 'sandbox' | 'live';
   countryCode?: string;
   prices: Record<'starterMonthly' | 'starterAnnual' | 'proMonthly' | 'proAnnual' | 'unlimitedMonthly' | 'unlimitedAnnual', string>;
 };
@@ -27,7 +27,7 @@ let activeCheckout: { callbacks: CheckoutCallbacks; completed: boolean } | undef
 export async function loadPaddlePricingContext(): Promise<PaddlePricingContext> {
   const response = await fetch('/api/paddle/pricing-context');
   const result = await response.json();
-  if (!response.ok || result.environment !== 'sandbox') {
+  if (!response.ok || !['sandbox', 'live'].includes(result.environment)) {
     throw new Error(result.error || 'Paddle Sandbox configuration is unavailable.');
   }
   return result as PaddlePricingContext;
@@ -36,13 +36,14 @@ export async function loadPaddlePricingContext(): Promise<PaddlePricingContext> 
 async function getPaddle(): Promise<Paddle> {
   const context = await loadPaddlePricingContext();
   const token = import.meta.env.VITE_PADDLE_CLIENT_TOKEN;
-  if (!token || !token.startsWith('test_')) {
-    throw new Error('Paddle Sandbox client-side token is missing or invalid.');
+  const isSandbox = context.environment === 'sandbox';
+  if (!token || !(isSandbox ? token.startsWith('test_') : token.startsWith('live_'))) {
+    throw new Error('Paddle client-side token does not match the configured environment.');
   }
   if (!paddlePromise) {
     paddlePromise = initializePaddle({
       token,
-      environment: context.environment,
+      ...(isSandbox ? { environment: 'sandbox' as const } : {}),
       eventCallback: (event) => {
         const active = activeCheckout;
         if (!active) return;
@@ -68,7 +69,7 @@ async function getPaddle(): Promise<Paddle> {
         }
       },
     }).then((paddle) => {
-      if (!paddle) throw new Error('Paddle.js did not initialize. Check the Sandbox client-side token.');
+      if (!paddle) throw new Error('Paddle.js did not initialize. Check the client-side token and environment.');
       return paddle;
     }).catch((error) => {
       paddlePromise = undefined;
@@ -147,7 +148,7 @@ export async function startPaddlePlanCheckout(
     callbacks.onCloseError?.(new Error(ticket.error || 'A checkout is already in progress. Close it before choosing another plan.'));
   }
   if (!response.ok || !ticket.priceId || !ticket.customData) {
-    throw new Error(ticket.error || 'Could not prepare Sandbox checkout.');
+    throw new Error(ticket.error || 'Could not prepare Paddle checkout.');
   }
   try {
     await openPaddlePriceCheckout(ticket as CheckoutTicket, callbacks);
