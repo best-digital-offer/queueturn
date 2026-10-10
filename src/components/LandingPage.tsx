@@ -148,6 +148,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <a href="#use-cases" className="hover:text-indigo-600 transition">Use Cases</a>
             <a href="#features" className="hover:text-indigo-600 transition">Features</a>
             <a href="#pricing" className="hover:text-indigo-600 transition">Pricing</a>
+            <a href="/blog/" className="hover:text-indigo-600 transition">Blog</a>
           </nav>
 
           <div className="flex items-center space-x-2.5">
