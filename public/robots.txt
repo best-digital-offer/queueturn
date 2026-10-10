@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /?view=dashboard
+Disallow: /?view=admin
+Disallow: /?view=customer
+Disallow: /?view=display
+
+Sitemap: https://www.queueturn.com/sitemap.xml
