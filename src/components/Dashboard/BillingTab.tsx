@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Check, X, CreditCard, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
+import { openPaddleCheckout } from '../../services/paddleCheckout';
 
 type PlanId = 'free' | 'starter' | 'pro' | 'unlimited';
 type BillingCycle = 'monthly' | 'annual';
@@ -120,8 +121,8 @@ export const BillingTab: React.FC = () => {
         body: JSON.stringify({ plan: planId, billingCycle }),
       });
       const result = await response.json();
-      if (!response.ok || !result.checkoutUrl) throw new Error(result.error || 'Could not start checkout.');
-      window.location.assign(result.checkoutUrl);
+      if (!response.ok || !result.transactionId) throw new Error(result.error || 'Could not start checkout.');
+      await openPaddleCheckout(result.transactionId);
     } catch (error) {
       setSuccessToast(error instanceof Error ? error.message : 'Could not start checkout.');
     } finally {
