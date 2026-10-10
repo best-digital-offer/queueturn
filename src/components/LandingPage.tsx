@@ -452,7 +452,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           <div className="col-span-2 space-y-3">
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Contact</h4>
-            <p className="text-xs text-slate-500"><a href="mailto:support@queueturn.com" className="hover:text-indigo-600">support@queueturn.com</a><br />7672022484</p>
+            <p className="text-xs text-slate-500"><a href="mailto:support@queueturn.com" className="hover:text-indigo-600">support@queueturn.com</a></p>
             <p className="text-xs leading-5 text-slate-500">N&N Digitals, Sree Hemadurga Towers, 207, 2nd Floor, A Block, Alwin Cross, Hyderabad 500059, India.</p>
           </div>
 
