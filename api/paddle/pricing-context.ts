@@ -26,7 +26,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const prices = Object.fromEntries(Object.entries(priceEnvironment).map(([name, env]) => [name, process.env[env] || '']));
-  if (Object.values(prices).some((priceId) => typeof priceId !== 'string' || !/^pri_[a-z\\d]{26}$/i.test(priceId))) {
+  if (Object.values(prices).some((priceId) => typeof priceId !== 'string' || !/^pri_[a-z\d]{26}$/i.test(priceId))) {
     return res.status(503).json({ error: 'Paddle pricing is unavailable: configure all six prices for the selected Paddle environment.' });
   }
 
