@@ -28,10 +28,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const paddleApiKey = process.env.PADDLE_API_KEY;
+  const environment = process.env.PADDLE_ENVIRONMENT;
+  const sandbox = environment === 'sandbox';
+  const live = environment === 'live';
   if (!supabaseUrl || !anonKey || !serviceRoleKey
-      || process.env.PADDLE_ENVIRONMENT !== 'sandbox' || !paddleApiKey?.startsWith('pdl_sdbx_')) {
+      || !(sandbox || live)
+      || !(sandbox ? paddleApiKey?.startsWith('pdl_sdbx_') : paddleApiKey?.startsWith('pdl_live_'))) {
     return res.status(503).json({ error: 'Checkout is temporarily unavailable.' });
   }
+  const paddleApiBase = sandbox ? 'https://sandbox-api.paddle.com' : 'https://api.paddle.com';
 
   const supabase = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -68,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (transactionId !== pendingCheckout?.paddle_transaction_id) {
       let transactionLookup: Response;
       try {
-        transactionLookup = await fetch(`https://sandbox-api.paddle.com/transactions/${transactionId}`, {
+        transactionLookup = await fetch(`${paddleApiBase}/transactions/${transactionId}`, {
           headers: { Authorization: `Bearer ${paddleApiKey}`, 'Paddle-Version': '1' },
           signal: AbortSignal.timeout(10_000),
         });
@@ -83,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     let response: Response;
     try {
-      response = await fetch(`https://sandbox-api.paddle.com/transactions/${transactionId}`, {
+      response = await fetch(`${paddleApiBase}/transactions/${transactionId}`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${paddleApiKey}`,
@@ -98,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      console.error('Paddle Sandbox checkout cancellation failed', response.status, payload?.error?.code || 'unknown');
+      console.error('Paddle checkout cancellation failed', response.status, payload?.error?.code || 'unknown');
       return res.status(502).json({ error: 'Paddle could not close the previous checkout. It remains reserved to protect your account.' });
     }
   }
