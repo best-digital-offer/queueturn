@@ -102,8 +102,18 @@ export async function releasePaddleCheckout(transactionId?: string): Promise<voi
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
     body: JSON.stringify({ transactionId }),
   });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Could not close checkout.');
+  const responseText = await response.text();
+  let result: { error?: string; released?: boolean } = {};
+  if (responseText) {
+    try {
+      result = JSON.parse(responseText) as { error?: string; released?: boolean };
+    } catch {
+      throw new Error(
+        `The checkout service returned an unexpected response (HTTP ${response.status}). Please refresh and try again; if it continues, contact support@queueturn.com.`,
+      );
+    }
+  }
+  if (!response.ok) throw new Error(result.error || `Could not close checkout (HTTP ${response.status}).`);
 }
 
 async function recordCheckoutTransaction(transactionId: string): Promise<void> {
