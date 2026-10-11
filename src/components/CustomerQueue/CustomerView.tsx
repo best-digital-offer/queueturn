@@ -522,11 +522,14 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
           )}
         </div>
 
-        {/* Footer info */}
-        <div className="max-w-md w-full mx-auto text-center pt-6 pb-2 text-[11px] text-slate-400">
-          <p>Powered by <strong>Queue Turn</strong> (queueturn.com) • No app download required</p>
-          <p className="mt-0.5">Keep this browser tab open to receive live updates</p>
-        </div>
+        {/* QueueTurn brand footer */}
+        <footer className="max-w-md w-full mx-auto flex flex-col items-center text-center pt-6 pb-2 gap-2">
+          <a href="https://www.queueturn.com" target="_blank" rel="noreferrer" aria-label="QueueTurn — Smart Queue Management" className="inline-flex items-center justify-center">
+            <img src="/queueturn-logo.svg" alt="QueueTurn — Smart Queue Management" className="w-52 sm:w-60 max-w-full h-auto object-contain" loading="lazy" />
+          </a>
+          <p className="text-[11px] text-slate-400">No app download required</p>
+          <p className="text-[11px] text-slate-400">Keep this browser tab open to receive live updates</p>
+        </footer>
       </div>
     );
   }
@@ -673,10 +676,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="max-w-md w-full mx-auto text-center pt-8 pb-2 text-[11px] text-slate-400">
-        <p>Queue Turn • queueturn.com • Digital Line Management</p>
-      </div>
+      {/* QueueTurn brand footer */}
+      <footer className="max-w-md w-full mx-auto flex flex-col items-center text-center pt-8 pb-3 gap-2">
+        <a href="https://www.queueturn.com" target="_blank" rel="noreferrer" aria-label="QueueTurn — Smart Queue Management" className="inline-flex items-center justify-center">
+          <img src="/queueturn-logo.svg" alt="QueueTurn — Smart Queue Management" className="w-52 sm:w-60 max-w-full h-auto object-contain" loading="lazy" />
+        </a>
+        <p className="text-[11px] text-slate-400">Digital Line Management · No app download required</p>
+      </footer>
     </div>
   );
 };
