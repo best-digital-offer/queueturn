@@ -477,6 +477,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <ul className="space-y-2 text-xs text-slate-500">
               <li><a href="#how-it-works" className="hover:text-indigo-600">How It Works</a></li>
               <li><a href="#pricing" className="hover:text-indigo-600">Pricing Plans</a></li>
+              <li><a href="/blog/" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600">Blog & Resources</a></li>
               <li><a href="/?page=about" className="hover:text-indigo-600">About Us</a></li>
               <li><a href="/?page=contact" className="hover:text-indigo-600">Contact Us</a></li>
               <li><a href="/?page=faq" className="hover:text-indigo-600">FAQ</a></li>
