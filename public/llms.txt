@@ -6,6 +6,8 @@
 - Homepage: https://www.queueturn.com/
 - Pricing: https://www.queueturn.com/#pricing
 - Blog and educational guides: https://www.queueturn.com/blog/
+- Expanded AI-readable product and editorial reference: https://www.queueturn.com/llms-full.txt
+- XML sitemap: https://www.queueturn.com/sitemap.xml
 
 ## Editorial resources
 - [What Is Queue Management Software? A Practical Guide for Businesses](https://www.queueturn.com/blog/what-is-queue-management-software/): Learn how queue management software works, who needs it, and how digital queues can make customer waiting more organized.
