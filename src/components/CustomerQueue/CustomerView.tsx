@@ -51,6 +51,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const [cloudBusiness, setCloudBusiness] = useState<any>(null);
   const [cloudLookupComplete, setCloudLookupComplete] = useState(!supabase);
   const [cloudVisitor, setCloudVisitor] = useState<any>(null);
+  const [cloudTicketPending, setCloudTicketPending] = useState(false);
   const [cloudStats, setCloudStats] = useState<any>(null);
   const [cloudStatsLoaded, setCloudStatsLoaded] = useState(false);
   const [joinError, setJoinError] = useState('');
@@ -87,6 +88,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     if (!cloudQueue || !supabase) return;
     const visitorId=localStorage.getItem('queueturn_cloud_visitor_id_'+cloudQueue.id);
     const token=localStorage.getItem('queueturn_cloud_visitor_token_'+cloudQueue.id);
+    setCloudTicketPending(Boolean(visitorId && token));
     let alive=true;
     const refresh=async()=> {
       // Queue-wide totals use a narrow public RPC; visitor details remain token-protected.
@@ -98,7 +100,12 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       if (stats) setCloudStats(stats);
       setCloudStatsLoaded(true);
       // Keep the last valid visitor state if a single polling request fails.
-      if (visitor) setCloudVisitor(visitor);
+      // A stored ticket must never fall back to the join form just because a status
+      // request temporarily returns no row or the visitor has reached a terminal state.
+      if (visitor) {
+        setCloudVisitor(visitor);
+        setCloudTicketPending(false);
+      }
     };
     void refresh();
     const poll=window.setInterval(()=>{ void refresh(); },5000);
@@ -115,7 +122,9 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     ? cloudQueue
     : (state.queues.find((q) => q.businessId === business?.id && (q.slug === queueSlug || q.id === queueSlug)) || state.queues[0]);
 
-  const activeCustomerEntry = cloudVisitor && (cloudVisitor.status === 'waiting' || cloudVisitor.status === 'called') ? { id:cloudVisitor.visitor_id, displayNumber:`${cloudVisitor.prefix || ''}${cloudVisitor.queue_number}`, status:cloudVisitor.status === 'called' ? 'serving' : cloudVisitor.status, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
+  const cloudEntryStatus = cloudVisitor?.status === 'called' ? 'serving' : cloudVisitor?.status === 'served' ? 'completed' : cloudVisitor?.status === 'removed' ? 'cancelled' : cloudVisitor?.status;
+  const activeCustomerEntry = cloudVisitor ? { id:cloudVisitor.visitor_id || cloudVisitor.id, displayNumber:`${cloudVisitor.prefix || cloudQueue?.prefix || ''}${cloudVisitor.queue_number}`, status:cloudEntryStatus, counterName:undefined } as any : (queue ? getCustomerActiveEntry(queue.id) : null);
+  const isTerminalTicket = Boolean(activeCustomerEntry && ['completed','cancelled','skipped','removed','served'].includes(activeCustomerEntry.status));
   const positionInfo = cloudVisitor ? { peopleAhead:Number(cloudVisitor.people_ahead||0), estimatedWaitMinutes:Number(cloudVisitor.estimated_wait_minutes||0) } : ((queue && activeCustomerEntry) ? calculatePosition(queue.id, activeCustomerEntry.id) : { peopleAhead: 0, estimatedWaitMinutes: 0 });
 
   const scheduledDate = cloudQueue?.scheduled_for || queue?.scheduledFor;
@@ -165,6 +174,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
         localStorage.setItem('queueturn_cloud_visitor_id_'+cloudQueue.id, visitorId);
         localStorage.setItem('queueturn_cloud_visitor_token_'+cloudQueue.id,result.customer_token);
         setCloudVisitor({visitor_id:visitorId,queue_id:result.queue_id || cloudQueue.id,queue_number:result.queue_number,customer_token:result.customer_token,status:'waiting',people_ahead:result.people_ahead ?? 0,estimated_wait_minutes:result.estimated_wait_minutes ?? 0,current_number:cloudQueue.current_number,prefix:cloudQueue.prefix,name:cloudQueue.name,is_paused:cloudQueue.is_paused,is_active:cloudQueue.is_active});
+        setCloudTicketPending(false);
       } else await joinQueue(queue.id, customerName, customerPhone);
       soundService.playChime();
     } catch (err) {
@@ -204,6 +214,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
         localStorage.removeItem(visitorKey);
         localStorage.removeItem(tokenKey);
         setCloudVisitor(null);
+        setCloudTicketPending(false);
         setJoinError('');
       } catch (error) {
         console.error('Could not leave cloud queue:', error);
@@ -243,6 +254,19 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     );
   }
 
+  if (cloudQueue && cloudTicketPending && !cloudVisitor) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-sm border border-slate-200 max-w-sm w-full">
+          <ShieldCheck className="w-10 h-10 text-indigo-600 mx-auto mb-3" />
+          <h2 className="text-lg font-bold text-slate-900">Your ticket is saved</h2>
+          <p className="text-slate-500 text-sm mt-2">We are reconnecting to your existing ticket. To prevent duplicate entries, this page will not create another ticket while your previous ticket is being checked.</p>
+          <button onClick={handleRefresh} className="mt-4 w-full py-2.5 px-4 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition">Check Ticket Status</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!business || !queue) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
@@ -266,7 +290,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   // --- SCREEN 2: POST-JOIN ACTIVE CUSTOMER STATUS ---
   if (activeCustomerEntry) {
     const isServing = activeCustomerEntry.status === 'serving';
-    const isAlmostUp = !isServing && positionInfo.peopleAhead <= 1;
+    const isTerminal = isTerminalTicket;
+    const isAlmostUp = !isServing && !isTerminal && positionInfo.peopleAhead <= 1;
 
     // Progress calculation (starts from ~10% up to 100%)
     const maxReference = Math.max(positionInfo.peopleAhead + 2, 4);
@@ -316,6 +341,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
           <div className={`rounded-3xl p-6 sm:p-8 text-center shadow-lg transition-all border ${
             isServing
               ? 'bg-gradient-to-b from-emerald-600 to-emerald-700 text-white border-emerald-500 ring-4 ring-emerald-400/30'
+              : isTerminal
+              ? 'bg-gradient-to-b from-slate-700 to-slate-800 text-white border-slate-600'
               : isAlmostUp
               ? 'bg-gradient-to-b from-indigo-700 to-indigo-900 text-white border-indigo-600'
               : 'bg-white text-slate-900 border-slate-200/80 shadow-slate-200/50'
@@ -339,6 +366,23 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                       ? `Please proceed to ${activeCustomerEntry.counterName}`
                       : 'Please proceed to the service counter now.'}
                   </p>
+                </div>
+              </div>
+            ) : isTerminal ? (
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-slate-100 text-xs font-bold uppercase tracking-wider">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Ticket Complete
+                </div>
+                <div>
+                  <span className="text-xs uppercase tracking-wider text-slate-300 font-medium">Your Ticket</span>
+                  <div className="text-6xl sm:text-7xl font-extrabold font-mono-numbers tracking-tight mt-1 text-white">
+                    {activeCustomerEntry.displayNumber}
+                  </div>
+                </div>
+                <div className="bg-white/10 rounded-2xl p-4">
+                  <h2 className="text-xl font-bold text-white">{activeCustomerEntry.status === 'skipped' || activeCustomerEntry.status === 'cancelled' ? 'This Ticket Is Closed' : 'Thank You for Visiting!'}</h2>
+                  <p className="text-slate-200 text-sm mt-1">This ticket has already been processed or closed. You cannot join again using this ticket page.</p>
                 </div>
               </div>
             ) : (
@@ -386,7 +430,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
           </div>
 
           {/* POSITION & WAIT METRICS */}
-          {!isServing && (
+          {!isServing && !isTerminal && (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs text-center">
                 <Users className="w-5 h-5 text-indigo-600 mx-auto mb-1" />
@@ -446,7 +490,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
           )}
 
           {/* LEAVE QUEUE CONFIRMATION */}
-          {showLeaveConfirm ? (
+          {!isTerminal && activeCustomerEntry.status === 'waiting' && showLeaveConfirm ? (
             <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-center space-y-3">
               <p className="text-xs text-rose-800 font-medium">
                 Are you sure you want to leave the waiting line? You will lose ticket <strong>{activeCustomerEntry.displayNumber}</strong>.
@@ -466,7 +510,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                 </button>
               </div>
             </div>
-          ) : (
+          ) : !isTerminal && activeCustomerEntry.status === 'waiting' ? (
             <div className="text-center pt-2">
               <button
                 onClick={() => setShowLeaveConfirm(true)}
