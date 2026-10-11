@@ -14,7 +14,8 @@ import {
   X, 
   ChevronDown,
   Building2,
-  Sparkles
+  Sparkles,
+  Newspaper
 } from 'lucide-react';
 import { useQueue } from '../../context/QueueContext';
 import { OverviewTab } from './OverviewTab';
@@ -181,6 +182,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 </button>
               );
             })}
+            <a
+              href="/blog/"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-600 hover:text-[#4318FF] hover:bg-[#F4F7FE] transition"
+            >
+              <Newspaper className="w-4 h-4 text-slate-400" />
+              <span>Blog & Resources</span>
+            </a>
           </nav>
 
           {/* Footer User & Logout */}
