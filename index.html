@@ -28,7 +28,48 @@
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta name="theme-color" content="#0B1A3A" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"SoftwareApplication","name":"QueueTurn","applicationCategory":"BusinessApplication","operatingSystem":"Web","url":"https://www.queueturn.com/","description":"Queue management software for digital queues, customer waitlists, QR-code check-in and live queue visibility."}
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.queueturn.com/#organization",
+            "name": "QueueTurn",
+            "url": "https://www.queueturn.com/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://www.queueturn.com/queueturn-icon.svg"
+            },
+            "email": "support@queueturn.com",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Sree Hemadurga Towers, 207, 2nd Floor, A Block, Alwin Cross",
+              "addressLocality": "Hyderabad",
+              "postalCode": "500059",
+              "addressCountry": "IN"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.queueturn.com/#website",
+            "url": "https://www.queueturn.com/",
+            "name": "QueueTurn",
+            "publisher": { "@id": "https://www.queueturn.com/#organization" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.queueturn.com/#software",
+            "name": "QueueTurn",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "url": "https://www.queueturn.com/",
+            "description": "Browser-based queue management software for digital queues, customer waitlists, QR-code check-in and live queue visibility.",
+            "publisher": { "@id": "https://www.queueturn.com/#organization" },
+            "isPartOf": { "@id": "https://www.queueturn.com/#website" }
+          }
+        ]
+      }
     </script>
     <style>.app-startup{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#f8fafc;color:#334155;font:500 14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.app-startup-mark{width:28px;height:28px;border:3px solid #c7d2fe;border-top-color:#4f46e5;border-radius:50%;animation:qt-spin .8s linear infinite}@keyframes qt-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.app-startup-mark{animation:none}}</style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
