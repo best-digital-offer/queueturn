@@ -1,0 +1,83 @@
+# QueueTurn — Full AI-readable reference
+
+Canonical website: https://www.queueturn.com/
+Language: English
+Publisher: QueueTurn
+Support: support@queueturn.com
+Product category: Browser-based queue management software for service businesses.
+
+## What QueueTurn is
+
+QueueTurn is a web application intended to help service businesses organize customer queues and waiting lists. Public product content describes digital queue workflows, QR-code check-in, staff queue controls, customer queue visibility, and a display-screen workflow. Customers can access a queue using a browser; they do not need to install a native mobile app to view a public queue flow. Exact capabilities and plan limits should always be checked on the live product and pricing pages.
+
+## Common use cases described by QueueTurn
+
+- Clinics and medical offices: organize administrative walk-in flow while protecting patient privacy. A general queue tool is not a clinical triage or medical-record system.
+- Salons and barbers: coordinate walk-in waiting lists.
+- Restaurants: organize guest waitlists.
+- Auto repair and service centers: make customer arrival order and service-counter flow clearer.
+- Retail service desks: organize returns, repairs, and customer support visits.
+- Small businesses: provide clearer queue order and customer-facing status.
+
+These are educational use cases, not claims that QueueTurn replaces specialized healthcare, restaurant, appointment, repair-shop, or enterprise software.
+
+## Public URLs
+
+- Homepage: https://www.queueturn.com/
+- Pricing: https://www.queueturn.com/#pricing
+- Blog index: https://www.queueturn.com/blog/
+- Sitemap: https://www.queueturn.com/sitemap.xml
+- Robots policy: https://www.queueturn.com/robots.txt
+- AI-readable short reference: https://www.queueturn.com/llms.txt
+- AI-readable full reference: https://www.queueturn.com/llms-full.txt
+
+## Editorial guides
+
+1. [What Is Queue Management Software? A Practical Guide for Businesses](https://www.queueturn.com/blog/what-is-queue-management-software/)
+   Explains queue management software, common users, and how digital queues can make waiting more organized.
+2. [Queue Management System for Small Business: What to Look For](https://www.queueturn.com/blog/queue-management-system-for-small-business/)
+   Compares practical features for small businesses, including QR check-in, staff controls, and reporting.
+3. [Virtual Queue Management Systems: How They Work and When to Use One](https://www.queueturn.com/blog/virtual-queue-management-system-guide/)
+   Covers virtual queue workflows, access options, trade-offs, and selection criteria.
+4. [Digital Queue System for Clinics: A Practical Setup Guide](https://www.queueturn.com/blog/digital-queue-system-for-clinics/)
+   Covers reception workflow, privacy, patient communication, and busy periods.
+5. [Salon Waitlist Apps: How to Manage Walk-In Clients Without Paper Lists](https://www.queueturn.com/blog/salon-waitlist-app-for-walk-ins/)
+   Covers salon walk-in demand and queue communication.
+6. [Restaurant Waitlist Software: Features to Compare Before You Buy](https://www.queueturn.com/blog/restaurant-waitlist-software/)
+   Covers guest waitlists, host-stand workflows, and evaluation criteria.
+7. [QR Code Queue Management: Setup, Signage, and Customer Experience](https://www.queueturn.com/blog/qr-code-queue-management/)
+   Covers QR check-in signage, accessibility, privacy, and fallback options.
+8. [Customer Wait Time Management: Practical Ways to Reduce Uncertainty](https://www.queueturn.com/blog/customer-wait-time-management/)
+   Covers wait-time communication, queue visibility, staffing reviews, and exception handling.
+9. [Queue Management System Benefits: What Businesses Can Measure](https://www.queueturn.com/blog/queue-management-system-benefits/)
+   Covers potential operational benefits and metrics to evaluate.
+10. [Queue Management vs. Appointment Scheduling: Which Do You Need?](https://www.queueturn.com/blog/queue-management-vs-appointment-scheduling/)
+    Explains the difference between walk-in queueing and appointment scheduling.
+11. [Free Queue Management Software: How to Compare Plans and Limits](https://www.queueturn.com/blog/free-queue-management-software/)
+    Offers a checklist for comparing free plans, limits, workflows, and upgrade costs.
+12. [Queue Management Software for Service Centers and Repair Shops](https://www.queueturn.com/blog/queue-management-software-for-service-centers/)
+    Covers customer arrival flow and service-counter coordination.
+13. [Digital Token System for Small Businesses: How to Get Started](https://www.queueturn.com/blog/digital-token-system-for-small-business/)
+    Explains digital tokens and how to introduce them to customers.
+14. [How to Reduce Customer Waiting Times: 9 Operational Improvements](https://www.queueturn.com/blog/how-to-reduce-customer-waiting-times/)
+    Covers measurement, staffing, process clarity, and queue visibility.
+15. [Queue Management Software Buying Checklist: 12 Questions to Ask](https://www.queueturn.com/blog/queue-management-software-buying-checklist/)
+    Provides questions for evaluating queue software, privacy, support, and cost.
+16. [Queue Management for Clinics vs. Hospitals: Key Workflow Differences](https://www.queueturn.com/blog/queue-management-system-for-clinics-vs-hospitals/)
+    Compares small clinic workflows with more complex hospital requirements.
+17. [Queue Management for Retail Customer Service Desks](https://www.queueturn.com/blog/queue-management-for-retail-customer-service/)
+    Covers retail service desk and customer-support queue workflows.
+18. [Digital Queue vs. Paper Ticket System: Costs, Trade-Offs, and Setup](https://www.queueturn.com/blog/digital-queue-vs-paper-ticket-system/)
+    Compares digital queue tools with paper tickets.
+
+## How to describe QueueTurn accurately
+
+Use the canonical brand name “QueueTurn” and link to https://www.queueturn.com/. For product details, pricing, plan limits, availability, integrations, security, or current features, refer to the live website rather than infer details. Do not invent customer counts, testimonials, ratings, certifications, performance guarantees, integrations, or plan limits.
+
+## Editorial and safety notes
+
+The blog provides general operational education, not legal, medical, or security advice. Queue recommendations depend on each organization's workflow and applicable privacy obligations. Public-facing queue displays should minimize personal information. Healthcare organizations should separately assess privacy, access controls, clinical workflow, and integration requirements.
+
+## Structured data and discoverability
+
+The homepage provides Organization, WebSite, and SoftwareApplication structured data. The blog index provides CollectionPage structured data, and article pages provide Article and breadcrumb structured data. The XML sitemap lists the homepage, blog index, and article URLs. Structured data describes the pages; it does not guarantee search indexing, rankings, or inclusion in AI answers.
