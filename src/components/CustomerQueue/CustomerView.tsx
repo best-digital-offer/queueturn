@@ -519,7 +519,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                 Leave Queue
               </button>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* QueueTurn brand footer */}
