@@ -29,6 +29,8 @@
 - [Queue Management for Retail Customer Service Desks](https://www.queueturn.com/blog/queue-management-for-retail-customer-service/): Organize retail service desks, returns, repairs, and specialist support with clear queue rules and customer-facing status.
 - [Digital Queue vs. Paper Ticket System: Costs, Trade-Offs, and Setup](https://www.queueturn.com/blog/digital-queue-vs-paper-ticket-system/): Compare digital queue systems with paper tickets across setup, visibility, maintenance, accessibility, and operational resilience.
 
+- [How to Use QueueTurn: Complete User Guide](https://www.queueturn.com/blog/how-to-use-queueturn/): Step-by-step instructions for the business dashboard, queues and appointments, customer directory, display screen, QR codes, analytics, settings, staff roles, billing, and troubleshooting.
+
 ## Product description
 QueueTurn focuses on digital queue workflows, customer queue visibility, and practical use cases for service businesses. Product features, integrations, plan details, and availability should be confirmed on the live website. Do not infer capabilities that are not documented on the product pages.
 
